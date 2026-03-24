@@ -1,0 +1,119 @@
+"use client";
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Ban } from "lucide-react";
+import { useRouter } from "next/navigation";
+import SquareAvatar from "@/components/branding/square-avatar";
+import { Button } from "@/components/ui/button";
+import api from "@/lib/api";
+
+export default function ProfileHeader({ profile }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const followMutation = useMutation({
+    mutationFn: async () => {
+      if (profile.viewerState.following) {
+        await api.delete(`/users/${profile.userId}/follow`);
+      } else {
+        await api.post(`/users/${profile.userId}/follow`);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile", profile.username] });
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+    }
+  });
+
+  const blockMutation = useMutation({
+    mutationFn: async () => {
+      if (profile.viewerState.blockedByViewer) {
+        await api.delete(`/users/${profile.userId}/block`);
+      } else {
+        await api.post(`/users/${profile.userId}/block`);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile", profile.username] });
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["explore"] });
+      queryClient.invalidateQueries({ queryKey: ["bookmarks"] });
+    }
+  });
+
+  const busy = followMutation.isPending || blockMutation.isPending;
+
+  return (
+    <section className="panel overflow-hidden">
+      <div className="relative subtle-grid h-44 bg-[linear-gradient(135deg,#0b0b0b_0%,#7a1111_55%,#161616_100%)]">
+        {profile.bannerUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={profile.bannerUrl} alt={`${profile.displayName} banner`} className="h-full w-full object-cover" />
+        ) : null}
+        <div className="absolute inset-0 bg-black/25" />
+      </div>
+      <div className="p-6">
+        <div className="-mt-16 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <SquareAvatar size="lg" initials={profile.initials} src={profile.avatarUrl} alt={profile.displayName} />
+          {profile.viewerState.isSelf ? (
+            <Button variant="secondary" onClick={() => router.push("/profile/edit")}>
+              Edit profile
+            </Button>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              {!profile.viewerState.hasBlockedViewer ? (
+                <Button
+                  variant={profile.viewerState.following ? "secondary" : "primary"}
+                  onClick={() => followMutation.mutate()}
+                  disabled={busy || profile.viewerState.blockedByViewer}
+                >
+                  {followMutation.isPending
+                    ? profile.viewerState.following
+                      ? "Updating..."
+                      : "Following..."
+                    : profile.viewerState.following
+                      ? "Following"
+                      : "Follow"}
+                </Button>
+              ) : (
+                <Button variant="secondary" disabled>
+                  Blocked you
+                </Button>
+              )}
+
+              <Button variant="secondary" onClick={() => blockMutation.mutate()} disabled={busy}>
+                <Ban size={16} className="mr-2" />
+                {blockMutation.isPending
+                  ? profile.viewerState.blockedByViewer
+                    ? "Unblocking..."
+                    : "Blocking..."
+                  : profile.viewerState.blockedByViewer
+                    ? "Unblock"
+                    : "Block"}
+              </Button>
+            </div>
+          )}
+        </div>
+        <div className="mt-4">
+          <h1 className="editorial-title text-3xl font-black text-white">{profile.displayName}</h1>
+          <p className="mt-1 text-sm text-muted">@{profile.username}</p>
+          <div className="mt-4 flex items-center gap-6 text-sm text-[#ece7e2]">
+            <div>
+              <span className="font-bold text-white">{profile.followingCount}</span> Following
+            </div>
+            <div>
+              <span className="font-bold text-white">{profile.followerCount}</span> Followers
+            </div>
+          </div>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-[#ece7e2]">{profile.bio}</p>
+          {profile.viewerState.blockedByViewer ? (
+            <p className="mt-4 text-xs uppercase tracking-[0.2em] text-accent">You blocked this account. Posts and engagement are disabled.</p>
+          ) : null}
+          {profile.viewerState.hasBlockedViewer ? (
+            <p className="mt-4 text-xs uppercase tracking-[0.2em] text-accent">This account has blocked you.</p>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}

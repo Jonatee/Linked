@@ -1,0 +1,30 @@
+const dotenv = require("dotenv");
+
+dotenv.config();
+
+function readEnv(name, fallback = "") {
+  return process.env[name] || fallback;
+}
+
+const env = {
+  nodeEnv: readEnv("NODE_ENV", "development"),
+  appName: readEnv("APP_NAME", "LInked"),
+  port: Number(readEnv("PORT", readEnv("BACKEND_PORT", 5000))),
+  appOrigin: readEnv("APP_ORIGIN", "http://localhost:3000"),
+  mongoUri: readEnv("MONGODB_URI", "mongodb://localhost:27017/linked"),
+  redisUrl: readEnv("REDIS_URL", "redis://localhost:6379"),
+  jwtAccessSecret: readEnv("JWT_ACCESS_SECRET", "access-secret"),
+  jwtRefreshSecret: readEnv("JWT_REFRESH_SECRET", "refresh-secret"),
+  jwtAccessTtl: readEnv("JWT_ACCESS_TTL", "15m"),
+  jwtRefreshTtl: readEnv("JWT_REFRESH_TTL", "30d"),
+  refreshCookieName: readEnv("COOKIE_REFRESH_NAME", "linked_refresh_token"),
+  cloudinary: {
+    cloudName: readEnv("CLOUDINARY_CLOUD_NAME"),
+    apiKey: readEnv("CLOUDINARY_API_KEY"),
+    apiSecret: readEnv("CLOUDINARY_API_SECRET"),
+    uploadFolder: readEnv("CLOUDINARY_UPLOAD_FOLDER", "linked")
+  }
+};
+
+module.exports = env;
+

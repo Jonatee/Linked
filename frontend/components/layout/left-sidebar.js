@@ -1,0 +1,125 @@
+"use client";
+
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { Bell, Bookmark, Compass, Home, LogOut, Settings, Shield, User } from "lucide-react";
+import { useRouter } from "next/navigation";
+import SquareAvatar from "@/components/branding/square-avatar";
+import api from "@/lib/api";
+import useAuthStore from "@/stores/auth-store";
+import useUiStore from "@/stores/ui-store";
+
+function NotificationMark({ unreadCount }) {
+  const value = unreadCount > 99 ? "99+" : String(unreadCount || 0).padStart(2, "0");
+
+  return (
+    <div className="relative flex h-9 w-9 items-center justify-center">
+      <div className="absolute inset-0 rounded-xl bg-[#201111]" />
+      <div className="absolute bottom-[-3px] right-[-3px] h-4 w-4 rounded-[4px] bg-black" />
+      <div className="absolute bottom-[-1px] right-[-1px] h-4 w-4 rounded-[4px] bg-accent/85" />
+      <span className="editorial-title relative z-10 text-[11px] font-black tracking-[0.08em] text-white">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+export default function LeftSidebar() {
+  const router = useRouter();
+  const currentUser = useAuthStore((state) => state.currentUser);
+  const clearSession = useAuthStore((state) => state.clearSession);
+  const openComposer = useUiStore((state) => state.openComposer);
+  const username = currentUser?.username || null;
+  const displayName = currentUser?.usernameDisplay || currentUser?.username || "Current User";
+  const initials = (displayName || "LI").slice(0, 2).toUpperCase();
+  const notificationsQuery = useQuery({
+    queryKey: ["notifications"],
+    queryFn: async () => {
+      const response = await api.get("/notifications");
+      return response.data.data;
+    },
+    enabled: Boolean(currentUser)
+  });
+  const unreadCount = (notificationsQuery.data || []).filter((item) => !item.isRead).length;
+
+  const items = [
+    { href: "/home", label: "Home", icon: Home },
+    { href: "/explore", label: "Explore", icon: Compass },
+    { href: "/notifications", label: "Notifications", icon: null },
+    { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
+    { href: username ? `/profile/${username}` : "/home", label: "Profile", icon: User },
+    { href: "/settings", label: "Settings", icon: Settings }
+  ];
+
+  if (currentUser?.role === "admin") {
+    items.push({ href: "/admin", label: "Admin", icon: Shield });
+  }
+
+  async function handleLogout() {
+    try {
+      await api.post("/auth/logout");
+    } catch (error) {
+      // Clear local session even if the backend session is already invalid.
+    } finally {
+      clearSession();
+      router.replace("/auth/login");
+    }
+  }
+
+  return (
+    <aside className="hidden h-screen border-r border-white/10 bg-[#131313] p-5 lg:flex lg:flex-col">
+      <div className="px-3">
+        <div className="editorial-title mb-8 text-3xl font-black text-[#ece7e2]">LInked</div>
+        <div className="mb-8 flex items-center gap-3">
+          <SquareAvatar
+            initials={initials}
+            size="sm"
+            src={currentUser?.profile?.avatarMedia?.secureUrl || ""}
+            alt={displayName}
+          />
+          <div>
+            <div className="editorial-title text-sm font-bold text-white">{displayName}</div>
+            <div className="text-xs text-muted">@{username || "linked_user"}</div>
+          </div>
+        </div>
+      </div>
+      <nav className="space-y-2">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const isNotifications = item.label === "Notifications";
+          return (
+            <Link
+              key={item.href + item.label}
+              href={item.href}
+              className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium text-muted transition hover:bg-[#1c1b1b] hover:text-white"
+            >
+              {isNotifications ? (
+                unreadCount ? <NotificationMark unreadCount={unreadCount} /> : <Bell size={18} />
+              ) : (
+                <Icon size={18} />
+              )}
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+      <div className="mt-auto px-3">
+        <button
+          type="button"
+          onClick={openComposer}
+          className="editorial-title flex w-full items-center justify-center rounded-md bg-accent px-4 py-3 text-sm font-bold text-white shadow-[0_12px_24px_rgba(224,36,36,0.18)]"
+        >
+          Post
+        </button>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-white/10 px-4 py-3 text-sm font-medium text-muted transition hover:bg-[#1c1b1b] hover:text-white"
+        >
+          <LogOut size={16} />
+          <span>Logout</span>
+        </button>
+      </div>
+    </aside>
+  );
+}
