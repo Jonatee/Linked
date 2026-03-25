@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Bell, Bookmark, Compass, Home, LogOut, PenSquare, Settings, Shield, User } from "lucide-react";
@@ -75,7 +76,14 @@ export default function LeftSidebar() {
     <aside className="hidden h-screen overflow-y-auto border-r border-white/10 bg-[#131313] p-5 lg:flex lg:flex-col lg:overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div className="px-3">
         <div className="mb-8">
-          <img src={LINKED_LOGO_URL} alt="LInked" className="h-14 w-auto rounded-xl object-contain" />
+          <Image
+            src={LINKED_LOGO_URL}
+            alt="LInked"
+            width={160}
+            height={56}
+            className="h-14 w-auto rounded-xl object-contain"
+            unoptimized
+          />
         </div>
         <div className="mb-8 flex items-center gap-3">
           <SquareAvatar

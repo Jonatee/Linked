@@ -4,10 +4,6 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 
 export default function MediaGallery({ media = [] }) {
-  if (!media.length) {
-    return null;
-  }
-
   const isSingle = media.length === 1;
   const isMulti = media.length > 1;
   const [activeItem, setActiveItem] = useState(null);
@@ -26,6 +22,10 @@ export default function MediaGallery({ media = [] }) {
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [activeItem]);
+
+  if (!media.length) {
+    return null;
+  }
 
   return (
     <>
