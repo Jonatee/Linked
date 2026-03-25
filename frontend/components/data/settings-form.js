@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Settings, SlidersHorizontal, UserRound, UserSquare2 } from "lucide-react";
+import { KeyRound, Settings, SlidersHorizontal, UserRound, UserSquare2 } from "lucide-react";
 import api from "@/lib/api";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { SettingsSkeleton } from "@/components/loading/screen-skeletons";
@@ -68,6 +69,13 @@ export default function SettingsForm() {
       language: "en"
     }
   });
+  const passwordForm = useForm({
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: ""
+    }
+  });
 
   const meQuery = useQuery({
     queryKey: ["me-settings"],
@@ -119,6 +127,15 @@ export default function SettingsForm() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["me-settings"] });
+    }
+  });
+  const passwordMutation = useMutation({
+    mutationFn: async (values) => {
+      const response = await api.post("/auth/change-password", values);
+      return response.data.data;
+    },
+    onSuccess: () => {
+      passwordForm.reset();
     }
   });
 
@@ -335,6 +352,43 @@ export default function SettingsForm() {
               <Input value={user?.username || ""} disabled />
               <Input value={user?.email || ""} disabled />
             </div>
+            <form
+              className="mt-6 grid gap-4"
+              onSubmit={passwordForm.handleSubmit((values) =>
+                passwordMutation.mutate({
+                  currentPassword: values.currentPassword,
+                  newPassword: values.newPassword
+                })
+              )}
+            >
+              <div className="mb-1 flex items-center gap-2">
+                <KeyRound size={16} className="text-accent" />
+                <div className="editorial-title text-xs font-bold text-muted">Change Password</div>
+              </div>
+              <PasswordInput
+                placeholder="Current password"
+                {...passwordForm.register("currentPassword", { required: true })}
+              />
+              <PasswordInput
+                placeholder="New password"
+                {...passwordForm.register("newPassword", { required: true })}
+              />
+              <PasswordInput
+                placeholder="Confirm new password"
+                {...passwordForm.register("confirmPassword", {
+                  required: true,
+                  validate: (value) => value === passwordForm.getValues("newPassword") || "Passwords do not match"
+                })}
+              />
+              {passwordForm.formState.errors.confirmPassword ? (
+                <p className="text-xs text-accent">{passwordForm.formState.errors.confirmPassword.message}</p>
+              ) : null}
+              <div className="flex items-center justify-end">
+                <Button type="submit" loading={passwordMutation.isPending}>
+                  Update password
+                </Button>
+              </div>
+            </form>
           </div>
 
           <div className="border-t border-white/10 pt-8">

@@ -7,6 +7,13 @@ const api = axios.create({
 
 let isRefreshing = false;
 let queuedRequests = [];
+const AUTH_FORM_ENDPOINTS = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/verify-email",
+  "/auth/forgot-password",
+  "/auth/reset-password"
+];
 
 function storeAccessToken(token) {
   if (typeof window !== "undefined") {
@@ -47,6 +54,10 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     if (typeof window === "undefined") {
+      return Promise.reject(error);
+    }
+
+    if (AUTH_FORM_ENDPOINTS.some((endpoint) => originalRequest?.url?.includes(endpoint))) {
       return Promise.reject(error);
     }
 

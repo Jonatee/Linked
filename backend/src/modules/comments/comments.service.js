@@ -123,6 +123,74 @@ async function getComments(postId, viewerId = null) {
   return enrichComments(visibleComments);
 }
 
+async function getCommentsByAuthor(authorId, query = {}, viewerId = null) {
+  const limit = Number(query.limit || 20);
+  const cursor = query.cursor ? new Date(query.cursor) : null;
+  const comments = await Comment.find({
+    authorId,
+    ...(cursor ? { createdAt: { $lt: cursor } } : {}),
+    deletedAt: null,
+    status: "active"
+  })
+    .sort({ createdAt: -1 })
+    .limit(limit + 1)
+    .lean();
+
+  const visibleAuthorIds = await blockingService.filterVisibleAuthorIds(
+    viewerId,
+    comments.map((comment) => comment.authorId)
+  );
+  const visibleComments = comments.filter((comment) => visibleAuthorIds.includes(comment.authorId));
+  const enrichedItems = await enrichComments(visibleComments);
+  const postIds = [...new Set(enrichedItems.map((comment) => comment.postId).filter(Boolean))];
+  const posts = postIds.length
+    ? await Post.find({ id: { $in: postIds }, deletedAt: null, status: "active" })
+        .select("id content authorId createdAt")
+        .lean()
+    : [];
+  const postAuthors = [...new Set(posts.map((post) => post.authorId).filter(Boolean))];
+  const [postUsers, postProfiles] = await Promise.all([
+    postAuthors.length ? User.find({ id: { $in: postAuthors }, deletedAt: null }).lean() : [],
+    postAuthors.length ? Profile.find({ userId: { $in: postAuthors } }).lean() : []
+  ]);
+
+  const itemsWithPosts = enrichedItems.map((comment) => {
+    const post = posts.find((entry) => entry.id === comment.postId) || null;
+    const postAuthor = post ? postUsers.find((entry) => entry.id === post.authorId) || null : null;
+    const postProfile = post ? postProfiles.find((entry) => entry.userId === post.authorId) || null : null;
+
+    return {
+      ...comment,
+      post: post
+        ? {
+            id: post.id,
+            content: post.content || "",
+            createdAt: post.createdAt,
+            author: postAuthor
+              ? {
+                  id: postAuthor.id,
+                  username: postAuthor.username,
+                  usernameDisplay: postAuthor.usernameDisplay,
+                  profile: postProfile || null
+                }
+              : null
+          }
+        : null
+    };
+  });
+
+  const hasMore = itemsWithPosts.length > limit;
+  const items = hasMore ? itemsWithPosts.slice(0, limit) : itemsWithPosts;
+
+  return {
+    items,
+    pageInfo: {
+      nextCursor: hasMore ? itemsWithPosts[limit - 1]?.createdAt || null : null,
+      hasMore
+    }
+  };
+}
+
 async function updateComment(userId, commentId, payload) {
   const comment = await Comment.findOne({ id: commentId, authorId: userId, deletedAt: null });
   if (!comment) {
@@ -202,6 +270,7 @@ async function toggleCommentReaction(userId, commentId, shouldReact) {
 module.exports = {
   createComment,
   getComments,
+  getCommentsByAuthor,
   updateComment,
   deleteComment,
   toggleCommentReaction,

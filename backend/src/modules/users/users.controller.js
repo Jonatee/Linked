@@ -32,6 +32,16 @@ const posts = asyncHandler(async (req, res) => {
   return sendSuccess(res, { message: "User posts loaded", data: result.items, meta: result.pageInfo });
 });
 
+const comments = asyncHandler(async (req, res) => {
+  const result = await usersService.listUserComments(req.params.username, req.query, req.user?.id || null);
+  return sendSuccess(res, { message: "User comments loaded", data: result.items, meta: result.pageInfo });
+});
+
+const likes = asyncHandler(async (req, res) => {
+  const result = await usersService.listUserLikes(req.params.username, req.query, req.user?.id || null);
+  return sendSuccess(res, { message: "User likes loaded", data: result.items, meta: result.pageInfo });
+});
+
 const block = asyncHandler(async (req, res) => {
   const result = await usersService.blockUser(req.user.id, req.params.userId);
   return sendSuccess(res, { message: "User blocked", data: result });
@@ -49,6 +59,8 @@ module.exports = {
   followers,
   following,
   posts,
+  comments,
+  likes,
   block,
   unblock
 };

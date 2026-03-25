@@ -5,6 +5,9 @@ const UserSettings = require("./user-settings.model");
 const Follow = require("../follows/follow.model");
 const Media = require("../media/media.model");
 const postsService = require("../posts/posts.service");
+const commentsService = require("../comments/comments.service");
+const Reaction = require("../reactions/reaction.model");
+const Post = require("../posts/post.model");
 const blockingService = require("./blocking.service");
 
 async function getUserByUsername(username, viewerId = null) {
@@ -69,6 +72,42 @@ async function listUserPosts(username, query, viewerId = null) {
   return postsService.getPostsByAuthor(user.id, query, viewerId);
 }
 
+async function listUserComments(username, query, viewerId = null) {
+  const { user } = await getUserByUsername(username, viewerId);
+  return commentsService.getCommentsByAuthor(user.id, query, viewerId);
+}
+
+async function listUserLikes(username, query, viewerId = null) {
+  const { user } = await getUserByUsername(username, viewerId);
+  const limit = Number(query.limit || 20);
+  const cursor = query.cursor ? new Date(query.cursor) : null;
+  const reactions = await Reaction.find({
+    userId: user.id,
+    targetType: "post",
+    reactionType: "like",
+    ...(cursor ? { createdAt: { $lt: cursor } } : {})
+  })
+    .sort({ createdAt: -1 })
+    .limit(limit + 1)
+    .lean();
+
+  const postIds = reactions.map((reaction) => reaction.targetId);
+  const posts = await Post.find({ id: { $in: postIds }, deletedAt: null, status: "active" }).lean();
+  const orderMap = new Map(reactions.map((reaction, index) => [reaction.targetId, index]));
+  const orderedPosts = posts.sort((a, b) => (orderMap.get(a.id) || 0) - (orderMap.get(b.id) || 0));
+  const enrichedItems = await postsService.enrichPosts(orderedPosts, viewerId);
+  const hasMore = enrichedItems.length > limit;
+  const items = hasMore ? enrichedItems.slice(0, limit) : enrichedItems;
+
+  return {
+    items,
+    pageInfo: {
+      nextCursor: hasMore ? reactions[limit - 1]?.createdAt || null : null,
+      hasMore
+    }
+  };
+}
+
 async function blockUser(viewerId, targetUserId) {
   const targetUser = await User.findOne({ id: targetUserId, deletedAt: null }).lean();
   if (!targetUser) {
@@ -94,6 +133,8 @@ module.exports = {
   listFollowers,
   listFollowing,
   listUserPosts,
+  listUserComments,
+  listUserLikes,
   blockUser,
   unblockUser
 };

@@ -26,13 +26,29 @@ const register = asyncHandler(async (req, res) => {
     emailProvided: Boolean(req.body?.email)
   });
   const result = await authService.register(req.body, authContext(req));
-  res.cookie(env.refreshCookieName, result.refreshToken, authService.buildCookieOptions());
   logInfo("Auth controller register response", {
-    userId: result.user.id
+    userId: result.user.id,
+    verificationRequired: Boolean(result.verificationRequired)
   });
   return sendSuccess(res, {
     statusCode: 201,
-    message: "Registration successful",
+    message: "Registration initiated",
+    data: result
+  });
+});
+
+const verifyEmail = asyncHandler(async (req, res) => {
+  logInfo("Auth controller verify-email request", {
+    emailProvided: Boolean(req.body?.email),
+    hasCode: Boolean(req.body?.code)
+  });
+  const result = await authService.verifyEmail(req.body, authContext(req));
+  res.cookie(env.refreshCookieName, result.refreshToken, authService.buildCookieOptions());
+  logInfo("Auth controller verify-email response", {
+    userId: result.user.id
+  });
+  return sendSuccess(res, {
+    message: "Email verified",
     data: {
       user: result.user,
       accessToken: result.accessToken
@@ -113,12 +129,26 @@ const forgotPassword = asyncHandler(async (req, res) => {
 
 const resetPassword = asyncHandler(async (req, res) => {
   logInfo("Auth controller reset-password request", {
-    hasToken: Boolean(req.body?.token),
+    emailProvided: Boolean(req.body?.email),
+    hasCode: Boolean(req.body?.code),
     hasPassword: Boolean(req.body?.password)
   });
   const result = await authService.resetPassword(req.body);
   logInfo("Auth controller reset-password response");
   return sendSuccess(res, { message: "Password reset completed", data: result });
+});
+
+const changePassword = asyncHandler(async (req, res) => {
+  logInfo("Auth controller change-password request", {
+    userId: req.user?.id || null,
+    hasCurrentPassword: Boolean(req.body?.currentPassword),
+    hasNewPassword: Boolean(req.body?.newPassword)
+  });
+  const result = await authService.changePassword(req.user.id, req.body);
+  logInfo("Auth controller change-password response", {
+    userId: req.user.id
+  });
+  return sendSuccess(res, { message: "Password updated", data: result });
 });
 
 const me = asyncHandler(async (req, res) => {
@@ -135,11 +165,13 @@ const me = asyncHandler(async (req, res) => {
 
 module.exports = {
   register,
+  verifyEmail,
   login,
   refresh,
   logout,
   logoutAll,
   forgotPassword,
   resetPassword,
+  changePassword,
   me
 };

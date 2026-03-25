@@ -7,14 +7,41 @@ const User = require("../users/user.model");
 const Profile = require("../profiles/profile.model");
 const UserSettings = require("../users/user-settings.model");
 const Media = require("../media/media.model");
+const AuthCode = require("./auth-code.model");
 const authRepository = require("./auth.repository");
 const env = require("../../config/env");
 const { sendMail } = require("../../config/mailer");
-const { PRODUCT_NAME, buildWelcomeEmail, buildResetPasswordEmail } = require("./auth-email.templates");
+const {
+  PRODUCT_NAME,
+  buildWelcomeEmail,
+  buildResetPasswordEmail,
+  buildPasswordChangedEmail,
+  buildVerifyEmail
+} = require("./auth-email.templates");
 const { logInfo, logError } = require("../../config/logger");
+
+const REGISTER_CODE_MINUTES = 15;
+const RESET_CODE_MINUTES = 30;
+const ALLOWED_EMAIL_DOMAINS = new Set(
+  ["gmail.com", "outlook.com", "yahoo.com", "yahoo.co.uk", "hotmail.com", "live.com"]
+    .concat(
+      String(process.env.VERIFIED_EMAIL_DOMAINS || "")
+        .split(",")
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean)
+    )
+);
 
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function hashCode(code) {
+  return crypto.createHash("sha256").update(String(code)).digest("hex");
+}
+
+function createNumericCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 function maskEmail(email = "") {
@@ -29,6 +56,17 @@ function maskEmail(email = "") {
 function maskIdentity(identity = "") {
   const value = String(identity || "").trim().toLowerCase();
   return value.includes("@") ? maskEmail(value) : value;
+}
+
+function getDomain(email = "") {
+  return String(email).split("@")[1]?.toLowerCase() || "";
+}
+
+function ensureAllowedEmailDomain(email) {
+  const domain = getDomain(email);
+  if (!ALLOWED_EMAIL_DOMAINS.has(domain)) {
+    throw new AppError("Only Gmail, Outlook, Yahoo, and verified domains are allowed", 400);
+  }
 }
 
 async function issueTokens(user, context = {}) {
@@ -54,7 +92,111 @@ async function issueTokens(user, context = {}) {
   return { accessToken, refreshToken };
 }
 
-async function register(payload, context) {
+async function createAuthCode({ userId = null, email, purpose, expirationMinutes }) {
+  const code = createNumericCode();
+  const expiresAt = new Date(Date.now() + expirationMinutes * 60 * 1000);
+
+  await AuthCode.updateMany(
+    { email, purpose, consumedAt: null },
+    { consumedAt: new Date(), modifiedAt: new Date() }
+  );
+
+  await AuthCode.create({
+    userId,
+    email,
+    codeHash: hashCode(code),
+    purpose,
+    expiresAt
+  });
+
+  return {
+    code,
+    expiresAt
+  };
+}
+
+async function consumeAuthCode({ email, code, purpose }) {
+  const authCode = await AuthCode.findOne({
+    email,
+    purpose,
+    codeHash: hashCode(code),
+    consumedAt: null,
+    expiresAt: { $gt: new Date() },
+    deletedAt: null
+  });
+
+  if (!authCode) {
+    throw new AppError("Invalid or expired code", 400);
+  }
+
+  authCode.consumedAt = new Date();
+  authCode.modifiedAt = new Date();
+  await authCode.save();
+
+  return authCode;
+}
+
+async function sendVerificationEmail(user, code) {
+  const verifyUrl = `${env.appOrigin}/auth/verify-email?email=${encodeURIComponent(user.email)}`;
+  const verifyEmail = buildVerifyEmail({
+    userName: user.usernameDisplay || user.username,
+    verifyUrl,
+    otpCode: code,
+    supportEmail: env.mail.from,
+    expirationMinutes: REGISTER_CODE_MINUTES
+  });
+
+  await sendMail({
+    to: user.email,
+    subject: verifyEmail.subject,
+    text: verifyEmail.text,
+    html: verifyEmail.html
+  });
+}
+
+async function issueVerificationCode(user) {
+  const { code } = await createAuthCode({
+    userId: user.id,
+    email: user.email,
+    purpose: "register_verify",
+    expirationMinutes: REGISTER_CODE_MINUTES
+  });
+
+  await sendVerificationEmail(user, code);
+}
+
+async function sendWelcomeEmail(user) {
+  const welcomeEmail = buildWelcomeEmail({
+    userName: user.usernameDisplay || user.username,
+    dashboardUrl: `${env.appOrigin}/home`,
+    supportEmail: env.mail.from
+  });
+
+  return sendMail({
+    to: user.email,
+    subject: welcomeEmail.subject,
+    text: welcomeEmail.text,
+    html: welcomeEmail.html
+  });
+}
+
+async function sendPasswordChangedEmail(user) {
+  const changedEmail = buildPasswordChangedEmail({
+    userName: user.usernameDisplay || user.username,
+    changedAt: new Date().toLocaleString(),
+    securityUrl: `${env.appOrigin}/settings`,
+    supportEmail: env.mail.from
+  });
+
+  return sendMail({
+    to: user.email,
+    subject: changedEmail.subject,
+    text: changedEmail.text,
+    html: changedEmail.html
+  });
+}
+
+async function register(payload) {
   const username = normalizeUsername(payload.username);
   const email = normalizeEmail(payload.email);
   logInfo("Auth register attempt", {
@@ -62,11 +204,30 @@ async function register(payload, context) {
     email: maskEmail(email)
   });
 
+  ensureAllowedEmailDomain(email);
+
   const existing = await User.findOne({
     $or: [{ username }, { email }]
   });
 
   if (existing) {
+    if (!existing.isEmailVerified && existing.status === "pending_verification") {
+      try {
+        await issueVerificationCode(existing);
+      } catch (error) {
+        logError("Verification resend failed", {
+          userId: existing.id,
+          email: maskEmail(existing.email),
+          message: error.message
+        });
+      }
+
+      throw new AppError("Email not verified. We sent you a fresh verification code.", 409, {
+        code: "email_not_verified",
+        email: existing.email
+      });
+    }
+
     logInfo("Auth register rejected", {
       username,
       email: maskEmail(email),
@@ -81,7 +242,8 @@ async function register(payload, context) {
     usernameDisplay: payload.username,
     email,
     passwordHash,
-    status: "active"
+    status: "pending_verification",
+    isEmailVerified: false
   });
 
   const profile = await Profile.create({
@@ -93,26 +255,65 @@ async function register(payload, context) {
   user.profileId = profile.id;
   user.settingsId = settings.id;
   await user.save();
+
+  try {
+    await issueVerificationCode(user);
+    logInfo("Verification email sent", {
+      userId: user.id,
+      email: maskEmail(user.email)
+    });
+  } catch (error) {
+    logError("Verification email failed", {
+      userId: user.id,
+      email: maskEmail(user.email),
+      message: error.message
+    });
+  }
+
   logInfo("Auth register success", {
     userId: user.id,
     username: user.username,
-    email: maskEmail(user.email)
+    email: maskEmail(user.email),
+    verificationRequired: true
   });
+
+  return {
+    verificationRequired: true,
+    email: user.email,
+    user: {
+      id: user.id,
+      username: user.username,
+      usernameDisplay: user.usernameDisplay,
+      email: user.email
+    }
+  };
+}
+
+async function verifyEmail(payload, context) {
+  const email = normalizeEmail(payload.email);
+  logInfo("Auth verify-email attempt", {
+    email: maskEmail(email)
+  });
+
+  const authCode = await consumeAuthCode({
+    email,
+    code: payload.code,
+    purpose: "register_verify"
+  });
+
+  const user = await User.findOne({ id: authCode.userId, email, deletedAt: null });
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+
+  user.isEmailVerified = true;
+  user.status = "active";
+  user.modifiedAt = new Date();
+  await user.save();
 
   const tokens = await issueTokens(user, context);
 
-  const welcomeEmail = buildWelcomeEmail({
-    userName: user.usernameDisplay || user.username,
-    dashboardUrl: `${env.appOrigin}/home`,
-    supportEmail: env.mail.from
-  });
-
-  sendMail({
-    to: user.email,
-    subject: welcomeEmail.subject,
-    text: welcomeEmail.text,
-    html: welcomeEmail.html
-  })
+  sendWelcomeEmail(user)
     .then(() => {
       logInfo("Welcome email queued", {
         userId: user.id,
@@ -156,6 +357,28 @@ async function login(payload, context) {
       reason: "invalid_password"
     });
     throw new AppError("Invalid credentials", 401);
+  }
+
+  if (!user.isEmailVerified || user.status === "pending_verification") {
+    try {
+      await issueVerificationCode(user);
+    } catch (error) {
+      logError("Verification resend failed", {
+        userId: user.id,
+        email: maskEmail(user.email),
+        message: error.message
+      });
+    }
+
+    logInfo("Auth login rejected", {
+      identity: maskIdentity(identity),
+      userId: user.id,
+      reason: "email_not_verified"
+    });
+    throw new AppError("Email not verified. We sent you a fresh verification code.", 403, {
+      code: "email_not_verified",
+      email: user.email
+    });
   }
 
   user.lastLoginAt = new Date();
@@ -283,52 +506,123 @@ async function me(userId) {
 
 async function forgotPassword(email) {
   const normalizedEmail = normalizeEmail(email);
-  const resetToken = `stub-reset-${Date.now()}`;
-  const resetUrl = `${env.appOrigin}/auth/reset-password?token=${resetToken}`;
   const user = await User.findOne({ email: normalizedEmail, deletedAt: null }).lean();
-  const userName = user?.usernameDisplay || user?.username || "there";
   logInfo("Auth forgot-password attempt", {
     email: maskEmail(normalizedEmail),
     userFound: Boolean(user)
   });
 
+  if (!user) {
+    return {
+      email: normalizedEmail,
+      message: `If an account exists, reset instructions for ${PRODUCT_NAME} have been sent`
+    };
+  }
+
+  const { code } = await createAuthCode({
+    userId: user.id,
+    email: normalizedEmail,
+    purpose: "reset_password",
+    expirationMinutes: RESET_CODE_MINUTES
+  });
+
   try {
     const resetEmail = buildResetPasswordEmail({
-      userName,
-      resetUrl,
+      userName: user.usernameDisplay || user.username || "there",
+      resetUrl: `${env.appOrigin}/auth/reset-password?email=${encodeURIComponent(normalizedEmail)}`,
       supportEmail: env.mail.from,
-      expirationMinutes: 30
+      expirationMinutes: RESET_CODE_MINUTES
     });
 
     await sendMail({
       to: normalizedEmail,
       subject: resetEmail.subject,
-      text: resetEmail.text,
-      html: resetEmail.html
+      text: `${resetEmail.text}\nYour reset code is: ${code}`,
+      html: `${resetEmail.html}<p style="margin:24px 60px 0 60px;font-size:16px;line-height:24px;color:#353534;text-align:center;"><strong>Your reset code:</strong> ${code}</p>`
     });
     logInfo("Reset email queued", {
       email: maskEmail(normalizedEmail),
-      userFound: Boolean(user)
+      userFound: true
     });
   } catch (error) {
     logError("Reset email failed", {
       email: maskEmail(normalizedEmail),
-      userFound: Boolean(user),
+      userFound: true,
       message: error.message
     });
   }
 
   return {
     email: normalizedEmail,
-    resetToken,
     message: `If an account exists, reset instructions for ${PRODUCT_NAME} have been sent`
   };
 }
 
-async function resetPassword() {
-  logInfo("Auth reset-password scaffold hit");
+async function resetPassword(payload) {
+  const email = normalizeEmail(payload.email);
+  logInfo("Auth reset-password attempt", {
+    email: maskEmail(email),
+    hasCode: Boolean(payload.code)
+  });
+
+  const authCode = await consumeAuthCode({
+    email,
+    code: payload.code,
+    purpose: "reset_password"
+  });
+
+  const user = await User.findOne({ id: authCode.userId, email, deletedAt: null });
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+
+  user.passwordHash = await hashPassword(payload.password);
+  user.modifiedAt = new Date();
+  await user.save();
+  await authRepository.revokeAllForUser(user.id);
+
+  sendPasswordChangedEmail(user).catch((error) => {
+    logError("Password changed email failed", {
+      userId: user.id,
+      email: maskEmail(user.email),
+      message: error.message
+    });
+  });
+
   return {
-    message: "Reset password flow scaffolded for future mail/token verification integration"
+    message: "Password reset successful"
+  };
+}
+
+async function changePassword(userId, payload) {
+  logInfo("Auth change-password attempt", {
+    userId
+  });
+
+  const user = await User.findOne({ id: userId, deletedAt: null });
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+
+  const isValid = await comparePassword(payload.currentPassword, user.passwordHash);
+  if (!isValid) {
+    throw new AppError("Current password is incorrect", 400);
+  }
+
+  user.passwordHash = await hashPassword(payload.newPassword);
+  user.modifiedAt = new Date();
+  await user.save();
+
+  sendPasswordChangedEmail(user).catch((error) => {
+    logError("Password changed email failed", {
+      userId: user.id,
+      email: maskEmail(user.email),
+      message: error.message
+    });
+  });
+
+  return {
+    success: true
   };
 }
 
@@ -343,6 +637,7 @@ function buildCookieOptions() {
 
 module.exports = {
   register,
+  verifyEmail,
   login,
   refreshToken,
   logout,
@@ -350,5 +645,6 @@ module.exports = {
   me,
   forgotPassword,
   resetPassword,
+  changePassword,
   buildCookieOptions
 };
