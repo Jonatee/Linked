@@ -32,6 +32,7 @@ export default function NotificationsData() {
             item.actor?.usernameDisplay ||
             item.actor?.username ||
             "System",
+          username: item.actor?.username || "",
           initials: (
             item.actor?.profile?.displayName ||
             item.actor?.usernameDisplay ||

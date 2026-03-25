@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
@@ -86,7 +87,17 @@ export default function NotificationList({ items = [] }) {
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="editorial-title text-sm font-bold text-white">{item.actor.name}</div>
+                  {item.actor.username ? (
+                    <Link
+                      href={`/profile/${item.actor.username}`}
+                      onClick={(event) => event.stopPropagation()}
+                      className="editorial-title text-sm font-bold text-white transition hover:text-accent"
+                    >
+                      {item.actor.name}
+                    </Link>
+                  ) : (
+                    <div className="editorial-title text-sm font-bold text-white">{item.actor.name}</div>
+                  )}
                   <p className="mt-1 text-sm text-muted">{item.message}</p>
                 </div>
                 <Button

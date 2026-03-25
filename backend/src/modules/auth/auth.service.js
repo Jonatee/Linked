@@ -99,32 +99,34 @@ async function register(payload, context) {
     email: maskEmail(user.email)
   });
 
-  try {
-    const welcomeEmail = buildWelcomeEmail({
-      userName: user.usernameDisplay || user.username,
-      dashboardUrl: `${env.appOrigin}/home`,
-      supportEmail: env.mail.from
-    });
-
-    await sendMail({
-      to: user.email,
-      subject: welcomeEmail.subject,
-      text: welcomeEmail.text,
-      html: welcomeEmail.html
-    });
-    logInfo("Welcome email queued", {
-      userId: user.id,
-      email: maskEmail(user.email)
-    });
-  } catch (error) {
-    logError("Welcome email failed", {
-      userId: user.id,
-      email: maskEmail(user.email),
-      message: error.message
-    });
-  }
-
   const tokens = await issueTokens(user, context);
+
+  const welcomeEmail = buildWelcomeEmail({
+    userName: user.usernameDisplay || user.username,
+    dashboardUrl: `${env.appOrigin}/home`,
+    supportEmail: env.mail.from
+  });
+
+  sendMail({
+    to: user.email,
+    subject: welcomeEmail.subject,
+    text: welcomeEmail.text,
+    html: welcomeEmail.html
+  })
+    .then(() => {
+      logInfo("Welcome email queued", {
+        userId: user.id,
+        email: maskEmail(user.email)
+      });
+    })
+    .catch((error) => {
+      logError("Welcome email failed", {
+        userId: user.id,
+        email: maskEmail(user.email),
+        message: error.message
+      });
+    });
+
   return { user, ...tokens };
 }
 

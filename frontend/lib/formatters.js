@@ -1,3 +1,27 @@
+function buildVideoPosterUrl(item = {}) {
+  if (item.thumbnailUrl && item.thumbnailUrl !== item.secureUrl) {
+    return item.thumbnailUrl;
+  }
+
+  const sourceUrl = item.secureUrl || "";
+  if (!sourceUrl.includes("/video/upload/")) {
+    return "";
+  }
+
+  const transformed = sourceUrl.replace("/video/upload/", "/video/upload/so_0,f_jpg/");
+  return transformed.replace(/\.[^/.?#]+(?=([?#].*)?$)/, ".jpg");
+}
+
+function buildVideoPlaybackUrl(item = {}) {
+  const sourceUrl = item.secureUrl || "";
+  if (!sourceUrl.includes("/video/upload/")) {
+    return sourceUrl;
+  }
+
+  const transformed = sourceUrl.replace("/video/upload/", "/video/upload/f_mp4,q_auto,vc_auto/");
+  return transformed.replace(/\.[^/.?#]+(?=([?#].*)?$)/, ".mp4");
+}
+
 export function formatPost(post) {
   const relationship = post.viewerState?.relationship || {};
   const original = post.originalPost || null;
@@ -20,7 +44,11 @@ export function formatPost(post) {
       id: item.id,
       type: item.type,
       url: item.secureUrl,
-      alt: item.altText
+      alt: item.altText,
+      duration: item.duration || 0,
+      thumbnailUrl: item.thumbnailUrl || "",
+      posterUrl: item.type === "video" ? buildVideoPosterUrl(item) : "",
+      playbackUrl: item.type === "video" ? buildVideoPlaybackUrl(item) : item.secureUrl
     })),
     originalPost: original
       ? {
@@ -37,7 +65,11 @@ export function formatPost(post) {
             id: item.id,
             type: item.type,
             url: item.secureUrl,
-            alt: item.altText
+            alt: item.altText,
+            duration: item.duration || 0,
+            thumbnailUrl: item.thumbnailUrl || "",
+            posterUrl: item.type === "video" ? buildVideoPosterUrl(item) : "",
+            playbackUrl: item.type === "video" ? buildVideoPlaybackUrl(item) : item.secureUrl
           })),
           stats: {
             likeCount: original.stats?.likeCount || 0,

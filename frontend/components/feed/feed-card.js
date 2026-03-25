@@ -28,42 +28,42 @@ export default function FeedCard({ post }) {
               <Link href={`/profile/${post.author.username}`} className="text-xs text-muted hover:text-white">
                 @{post.author.username}
               </Link>
-              <div className="text-xs text-muted">{post.createdAtLabel}</div>
+              <Link href={`/posts/${post.id}`} className="text-xs text-muted hover:text-white">
+                {post.createdAtLabel}
+              </Link>
             </div>
             <PostMoreMenu post={post} />
           </div>
-          <Link href={`/posts/${post.id}`} className="block">
-            {post.content ? (
-              <RichContent className="mt-2 text-[14px] leading-6 text-[#ece7e2]" content={post.content} />
-            ) : null}
-            {post.media?.length ? <MediaGallery media={post.media} /> : null}
-            {post.originalPost ? (
-              <div className="mt-3 rounded-[18px] border border-white/10 bg-[#121212] p-3">
-                <div className="flex items-center gap-2.5">
-                  <SquareAvatar
-                    initials={post.originalPost.author.initials}
-                    src={post.originalPost.author.avatarUrl}
-                    alt={post.originalPost.author.name}
-                    size="sm"
-                  />
-                  <div>
-                    <div className="text-sm font-semibold text-white">{post.originalPost.author.name}</div>
-                    <div className="text-xs text-muted">@{post.originalPost.author.username}</div>
-                  </div>
+          {post.content ? (
+            <RichContent className="mt-2 text-[14px] leading-6 text-[#ece7e2]" content={post.content} />
+          ) : null}
+          {post.media?.length ? <MediaGallery media={post.media} /> : null}
+          {post.originalPost ? (
+            <div className="mt-3 rounded-[18px] border border-white/10 bg-[#121212] p-3">
+              <div className="flex items-center gap-2.5">
+                <SquareAvatar
+                  initials={post.originalPost.author.initials}
+                  src={post.originalPost.author.avatarUrl}
+                  alt={post.originalPost.author.name}
+                  size="sm"
+                />
+                <div>
+                  <div className="text-sm font-semibold text-white">{post.originalPost.author.name}</div>
+                  <div className="text-xs text-muted">@{post.originalPost.author.username}</div>
                 </div>
-                <RichContent className="mt-2 text-sm leading-6 text-[#ece7e2]" content={post.originalPost.content} />
-                <MediaGallery media={post.originalPost.media || []} />
-                {post.type === "quote_repost" ? (
-                  <div className="editorial-title mt-3 text-[10px] font-bold tracking-[0.2em] text-muted">Quote repost</div>
-                ) : null}
               </div>
-            ) : post.quotePost ? (
-              <div className="mt-3 rounded-[18px] border border-white/10 bg-[#121212] p-3">
-                <div className="editorial-title text-[10px] font-bold tracking-[0.2em] text-muted">Quote repost</div>
-                <RichContent className="mt-2 text-sm leading-6 text-[#ece7e2]" content={post.quotePost.content} />
-              </div>
-            ) : null}
-          </Link>
+              <RichContent className="mt-2 text-sm leading-6 text-[#ece7e2]" content={post.originalPost.content} />
+              <MediaGallery media={post.originalPost.media || []} />
+              {post.type === "quote_repost" ? (
+                <div className="editorial-title mt-3 text-[10px] font-bold tracking-[0.2em] text-muted">Quote repost</div>
+              ) : null}
+            </div>
+          ) : post.quotePost ? (
+            <div className="mt-3 rounded-[18px] border border-white/10 bg-[#121212] p-3">
+              <div className="editorial-title text-[10px] font-bold tracking-[0.2em] text-muted">Quote repost</div>
+              <RichContent className="mt-2 text-sm leading-6 text-[#ece7e2]" content={post.quotePost.content} />
+            </div>
+          ) : null}
           <PostActions post={post} />
         </div>
       </div>
