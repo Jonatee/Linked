@@ -158,13 +158,13 @@ export default function PostComposer({ variant = "inline" }) {
                 className="hidden"
                 onChange={handleFileSelection}
               />
-              <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-                {uploading ? "Uploading..." : "Add media"}
+              <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()} loading={uploading}>
+                Add media
               </Button>
               <div className="text-xs text-muted">Up to 4 images or 1 video</div>
             </div>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? "Posting..." : "Post"}
+            <Button type="submit" loading={mutation.isPending}>
+              Post
             </Button>
           </div>
         </div>

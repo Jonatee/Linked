@@ -54,7 +54,9 @@ export default function RegisterPage() {
             <Input placeholder="Username" {...form.register("username", { required: true })} />
             <Input type="email" placeholder="Email" {...form.register("email", { required: true })} />
             <Input type="password" placeholder="Password" {...form.register("password", { required: true })} />
-            <Button type="submit">Register</Button>
+            <Button type="submit" loading={form.formState.isSubmitting}>
+              Register
+            </Button>
           </div>
           <p className="mt-4 text-sm text-muted">
             Already have an account? <Link href="/auth/login" className="text-accent">Login</Link>

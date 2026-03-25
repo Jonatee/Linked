@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Settings, SlidersHorizontal, UserRound, UserSquare2 } from "lucide-react";
 import api from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -199,13 +200,21 @@ export default function SettingsForm() {
     <div className="space-y-10">
       <section className="panel p-6">
         <div className="mb-8">
-          <div className="editorial-title text-3xl font-black text-white">Settings</div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent">
+              <Settings size={22} />
+            </div>
+            <div className="editorial-title text-3xl font-black text-white">Settings</div>
+          </div>
           <p className="mt-2 text-sm text-muted">Manage your public profile and platform preferences for LInked.</p>
         </div>
 
         <div className="grid gap-8">
           <div>
-            <div className="editorial-title mb-4 text-xs font-bold text-muted">Profile</div>
+            <div className="mb-4 flex items-center gap-2">
+              <UserRound size={16} className="text-accent" />
+              <div className="editorial-title text-xs font-bold text-muted">Profile</div>
+            </div>
             <form
               className="grid gap-4"
               onSubmit={profileForm.handleSubmit((values) => profileMutation.mutate(values))}
@@ -229,9 +238,9 @@ export default function SettingsForm() {
                       type="button"
                       variant="secondary"
                       onClick={() => bannerInputRef.current?.click()}
-                      disabled={uploadingTarget === "banner"}
+                      loading={uploadingTarget === "banner"}
                     >
-                      {uploadingTarget === "banner" ? "Uploading banner..." : "Upload banner"}
+                      Upload banner
                     </Button>
                   </div>
                 </div>
@@ -254,9 +263,9 @@ export default function SettingsForm() {
                       type="button"
                       variant="secondary"
                       onClick={() => avatarInputRef.current?.click()}
-                      disabled={uploadingTarget === "avatar"}
+                      loading={uploadingTarget === "avatar"}
                     >
-                      {uploadingTarget === "avatar" ? "Uploading avatar..." : "Upload avatar"}
+                      Upload avatar
                     </Button>
                   </div>
                   <div className="text-xs text-muted">
@@ -270,13 +279,18 @@ export default function SettingsForm() {
               <Input {...profileForm.register("location")} placeholder="Location" />
               <Input {...profileForm.register("occupation")} placeholder="Occupation" />
               <div className="flex items-center justify-end">
-                <Button type="submit">{profileMutation.isPending ? "Saving..." : "Save profile"}</Button>
+                <Button type="submit" loading={profileMutation.isPending}>
+                  Save profile
+                </Button>
               </div>
             </form>
           </div>
 
           <div className="border-t border-white/10 pt-8">
-            <div className="editorial-title mb-4 text-xs font-bold text-muted">Account</div>
+            <div className="mb-4 flex items-center gap-2">
+              <UserSquare2 size={16} className="text-accent" />
+              <div className="editorial-title text-xs font-bold text-muted">Account</div>
+            </div>
             <div className="grid gap-4">
               <Input value={user?.username || ""} disabled />
               <Input value={user?.email || ""} disabled />
@@ -284,7 +298,10 @@ export default function SettingsForm() {
           </div>
 
           <div className="border-t border-white/10 pt-8">
-            <div className="editorial-title mb-4 text-xs font-bold text-muted">Preferences</div>
+            <div className="mb-4 flex items-center gap-2">
+              <SlidersHorizontal size={16} className="text-accent" />
+              <div className="editorial-title text-xs font-bold text-muted">Preferences</div>
+            </div>
             <form
               className="grid gap-6"
               onSubmit={settingsForm.handleSubmit((values) => settingsMutation.mutate(values))}
@@ -310,7 +327,9 @@ export default function SettingsForm() {
                 />
               </div>
               <div className="flex items-center justify-end">
-                <Button type="submit">{settingsMutation.isPending ? "Saving..." : "Save preferences"}</Button>
+                <Button type="submit" loading={settingsMutation.isPending}>
+                  Save preferences
+                </Button>
               </div>
             </form>
           </div>

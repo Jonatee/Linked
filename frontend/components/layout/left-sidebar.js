@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, Bookmark, Compass, Home, LogOut, Settings, Shield, User } from "lucide-react";
+import { Bell, Bookmark, Compass, Home, LogOut, PenSquare, Settings, Shield, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
 import api from "@/lib/api";
@@ -72,7 +72,7 @@ export default function LeftSidebar() {
   }
 
   return (
-    <aside className="hidden h-screen border-r border-white/10 bg-[#131313] p-5 lg:flex lg:flex-col">
+    <aside className="hidden h-screen overflow-y-auto border-r border-white/10 bg-[#131313] p-5 lg:flex lg:flex-col lg:overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div className="px-3">
         <div className="mb-8">
           <img src={LINKED_LOGO_URL} alt="LInked" className="h-14 w-auto rounded-xl object-contain" />
@@ -116,6 +116,7 @@ export default function LeftSidebar() {
           onClick={openComposer}
           className="editorial-title flex w-full items-center justify-center rounded-md bg-accent px-4 py-3 text-sm font-bold text-white shadow-[0_12px_24px_rgba(224,36,36,0.18)]"
         >
+          <PenSquare size={16} className="mr-2" />
           Post
         </button>
         <button

@@ -41,8 +41,8 @@ export default function CommentComposer({ postId }) {
           <div className="editorial-title mb-3 text-xs font-bold text-muted">Reply</div>
           <Textarea placeholder="Post your reply" {...form.register("content", { required: true })} />
           <div className="mt-4 flex justify-end">
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? "Posting..." : "Reply"}
+            <Button type="submit" loading={mutation.isPending}>
+              Reply
             </Button>
           </div>
         </div>

@@ -1,11 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
-import { Input } from "@/components/ui/input";
 import SquareAvatar from "@/components/branding/square-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -23,9 +20,6 @@ function SidebarSectionSkeleton({ lines = 4 }) {
 }
 
 export default function RightSidebar() {
-  const router = useRouter();
-  const [searchValue, setSearchValue] = useState("");
-
   const tagsQuery = useQuery({
     queryKey: ["sidebar-tags"],
     queryFn: async () => {
@@ -42,29 +36,8 @@ export default function RightSidebar() {
     }
   });
 
-  function handleSubmit(event) {
-    event.preventDefault();
-    const value = searchValue.trim();
-    if (!value) {
-      return;
-    }
-
-    router.push(`/search?q=${encodeURIComponent(value)}`);
-  }
-
   return (
     <aside className="space-y-6">
-      <section className="panel p-5">
-        <div className="editorial-title mb-3 text-xs font-bold text-muted">Search</div>
-        <form onSubmit={handleSubmit}>
-          <Input
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Search users, posts, tags"
-          />
-        </form>
-      </section>
-
       {tagsQuery.isLoading ? (
         <SidebarSectionSkeleton lines={4} />
       ) : (

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, Bookmark, Compass, Home, LogOut, Menu, Settings, Shield, User, X } from "lucide-react";
+import { Bell, Bookmark, Compass, Home, LogOut, Menu, PenSquare, Settings, Shield, User, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
 import api from "@/lib/api";
@@ -102,8 +102,9 @@ export default function MobileSidebar() {
           <button
             type="button"
             onClick={handleComposerOpen}
-            className="rounded-xl bg-accent px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white"
+            className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white"
           >
+            <PenSquare size={14} />
             Post
           </button>
         </div>
@@ -175,6 +176,7 @@ export default function MobileSidebar() {
                 onClick={handleComposerOpen}
                 className="editorial-title flex w-full items-center justify-center rounded-xl bg-accent px-4 py-3 text-sm font-bold text-white shadow-[0_12px_24px_rgba(224,36,36,0.18)]"
               >
+                <PenSquare size={16} className="mr-2" />
                 Post
               </button>
               <button

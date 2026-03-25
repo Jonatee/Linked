@@ -7,7 +7,7 @@ import Link from "next/link";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
-function ActionControl({ icon: Icon, label, count, active, onClick, disabled = false, href }) {
+function ActionControl({ icon: Icon, label, count, active, onClick, disabled = false, href, loading = false }) {
   if (href) {
     return (
       <Link href={href} className="inline-flex items-center gap-2 text-xs text-muted transition hover:text-white">
@@ -24,6 +24,7 @@ function ActionControl({ icon: Icon, label, count, active, onClick, disabled = f
       variant="ghost"
       onClick={onClick}
       disabled={disabled}
+      loading={loading}
       className={`gap-2 px-0 py-0 text-xs ${active ? "text-accent" : "text-muted"}`}
     >
       <Icon size={16} fill={active ? "currentColor" : "none"} />
@@ -171,8 +172,17 @@ export default function PostActions({ post }) {
         active={reposted}
         onClick={handleRepost}
         disabled={actionsDisabled}
+        loading={repostMutation.isPending}
       />
-      <ActionControl icon={Heart} label="Like" count={counts.likeCount} active={liked} onClick={handleLike} disabled={actionsDisabled} />
+      <ActionControl
+        icon={Heart}
+        label="Like"
+        count={counts.likeCount}
+        active={liked}
+        onClick={handleLike}
+        disabled={actionsDisabled}
+        loading={likeMutation.isPending}
+      />
       <ActionControl
         icon={Bookmark}
         label="Save"
@@ -180,6 +190,7 @@ export default function PostActions({ post }) {
         active={bookmarked}
         onClick={handleBookmark}
         disabled={actionsDisabled}
+        loading={bookmarkMutation.isPending}
       />
       <ActionControl icon={Share} label="Share" active={false} />
     </div>

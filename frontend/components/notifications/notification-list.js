@@ -55,9 +55,10 @@ export default function NotificationList({ items = [] }) {
           variant="secondary"
           onClick={() => markAllMutation.mutate()}
           disabled={!unreadCount || markAllMutation.isPending}
+          loading={markAllMutation.isPending}
           className={!unreadCount ? "cursor-not-allowed opacity-50" : ""}
         >
-          {markAllMutation.isPending ? "Marking..." : "Mark all as read"}
+          Mark all as read
         </Button>
       </div>
 
@@ -94,6 +95,7 @@ export default function NotificationList({ items = [] }) {
                   className={`shrink-0 px-2 py-1 text-[11px] ${item.isRead ? "cursor-not-allowed opacity-50" : ""}`}
                   onClick={(event) => handleMarkRead(event, item)}
                   disabled={item.isRead || markReadMutation.isPending}
+                  loading={markReadMutation.isPending && !item.isRead}
                 >
                   {item.isRead ? "Read" : "Mark read"}
                 </Button>

@@ -52,7 +52,9 @@ export default function LoginPage() {
           <div className="mt-6 grid gap-4">
             <Input placeholder="Email or username" {...form.register("identity", { required: true })} />
             <Input type="password" placeholder="Password" {...form.register("password", { required: true })} />
-            <Button type="submit">Login</Button>
+            <Button type="submit" loading={form.formState.isSubmitting}>
+              Login
+            </Button>
           </div>
           <p className="mt-4 text-sm text-muted">
             Need an account? <Link href="/auth/register" className="text-accent">Register</Link>

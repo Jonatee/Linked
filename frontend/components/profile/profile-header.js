@@ -65,15 +65,10 @@ export default function ProfileHeader({ profile }) {
                 <Button
                   variant={profile.viewerState.following ? "secondary" : "primary"}
                   onClick={() => followMutation.mutate()}
+                  loading={followMutation.isPending}
                   disabled={busy || profile.viewerState.blockedByViewer}
                 >
-                  {followMutation.isPending
-                    ? profile.viewerState.following
-                      ? "Updating..."
-                      : "Following..."
-                    : profile.viewerState.following
-                      ? "Following"
-                      : "Follow"}
+                  {profile.viewerState.following ? "Following" : "Follow"}
                 </Button>
               ) : (
                 <Button variant="secondary" disabled>
@@ -81,15 +76,9 @@ export default function ProfileHeader({ profile }) {
                 </Button>
               )}
 
-              <Button variant="secondary" onClick={() => blockMutation.mutate()} disabled={busy}>
+              <Button variant="secondary" onClick={() => blockMutation.mutate()} loading={blockMutation.isPending} disabled={busy}>
                 <Ban size={16} className="mr-2" />
-                {blockMutation.isPending
-                  ? profile.viewerState.blockedByViewer
-                    ? "Unblocking..."
-                    : "Blocking..."
-                  : profile.viewerState.blockedByViewer
-                    ? "Unblock"
-                    : "Block"}
+                {profile.viewerState.blockedByViewer ? "Unblock" : "Block"}
               </Button>
             </div>
           )}
