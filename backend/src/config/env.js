@@ -25,11 +25,13 @@ const env = {
     uploadFolder: readEnv("CLOUDINARY_UPLOAD_FOLDER", "linked")
   },
   mail: {
+    provider: readEnv("MAIL_PROVIDER", "smtp"),
     from: readEnv("EMAIL_FROM", "no-reply@linked.local"),
     smtpHost: readEnv("SMTP_HOST", "localhost"),
     smtpPort: Number(readEnv("SMTP_PORT", 1025)),
     smtpUser: readEnv("SMTP_USER"),
-    smtpPass: readEnv("SMTP_PASS")
+    smtpPass: readEnv("SMTP_PASS"),
+    brevoApiKey: readEnv("BREVO_API_KEY")
   }
 };
 
