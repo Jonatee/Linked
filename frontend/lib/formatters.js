@@ -53,6 +53,7 @@ export function formatPost(post) {
     originalPost: original
       ? {
           id: original.id,
+          createdAtLabel: original.createdAt ? new Date(original.createdAt).toLocaleString() : "now",
           author: {
             id: original.author?.id || original.authorId || "",
             name: original.author?.profile?.displayName || original.author?.usernameDisplay || "Unknown",

@@ -4,6 +4,25 @@ const Profile = require("../profiles/profile.model");
 const Comment = require("../comments/comment.model");
 const Media = require("../media/media.model");
 
+async function createMentionNotifications({ recipientIds = [], actorId, entityType, entityId, message }) {
+  const targetRecipientIds = [...new Set(recipientIds.filter((recipientId) => recipientId && recipientId !== actorId))];
+
+  if (!targetRecipientIds.length) {
+    return [];
+  }
+
+  return Notification.insertMany(
+    targetRecipientIds.map((recipientId) => ({
+      recipientId,
+      actorId,
+      type: "mention",
+      entityType,
+      entityId,
+      message
+    }))
+  );
+}
+
 async function listNotifications(recipientId) {
   const notifications = await Notification.find({ recipientId }).sort({ createdAt: -1 }).limit(100).lean();
   const actorIds = [...new Set(notifications.map((item) => item.actorId).filter(Boolean))];
@@ -71,6 +90,7 @@ async function markAllRead(recipientId) {
 }
 
 module.exports = {
+  createMentionNotifications,
   listNotifications,
   markRead,
   markAllRead

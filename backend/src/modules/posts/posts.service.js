@@ -9,6 +9,7 @@ const Reaction = require("../reactions/reaction.model");
 const Bookmark = require("../bookmarks/bookmark.model");
 const Repost = require("../reposts/repost.model");
 const Notification = require("../notifications/notification.model");
+const notificationService = require("../notifications/notifications.service");
 const Hashtag = require("../search/hashtag.model");
 const Profile = require("../profiles/profile.model");
 const blockingService = require("../users/blocking.service");
@@ -143,6 +144,22 @@ async function bumpHashtags(hashtags) {
   }
 }
 
+async function notifyNewPostMentions({ actorId, postId, mentionUserIds = [], previousMentionUserIds = [] }) {
+  const newMentionUserIds = mentionUserIds.filter((recipientId) => !previousMentionUserIds.includes(recipientId));
+
+  if (!newMentionUserIds.length) {
+    return;
+  }
+
+  await notificationService.createMentionNotifications({
+    recipientIds: newMentionUserIds,
+    actorId,
+    entityType: "post",
+    entityId: postId,
+    message: "mentioned you in a post"
+  });
+}
+
 async function createPost(authorId, payload) {
   if (payload.mediaIds.length > 0) {
     const media = await Media.find({ id: { $in: payload.mediaIds }, ownerId: authorId, deletedAt: null });
@@ -176,6 +193,11 @@ async function createPost(authorId, payload) {
     { id: { $in: payload.mediaIds } },
     { usageStatus: "attached", attachedEntityType: "post", attachedEntityId: post.id, modifiedAt: new Date() }
   );
+  await notifyNewPostMentions({
+    actorId: authorId,
+    postId: post.id,
+    mentionUserIds
+  });
 
   return post;
 }
@@ -282,6 +304,7 @@ async function updatePost(userId, postId, payload) {
     throw new AppError("Post not found", 404);
   }
 
+  const previousMentionUserIds = [...(post.mentionUserIds || [])];
   post.content = payload.content;
   post.plainTextContent = payload.content.toLowerCase();
   post.hashtags = extractHashtags(payload.content);
@@ -290,14 +313,21 @@ async function updatePost(userId, postId, payload) {
   post.editedAt = new Date();
   post.modifiedAt = new Date();
   await post.save();
+  await notifyNewPostMentions({
+    actorId: userId,
+    postId: post.id,
+    mentionUserIds: post.mentionUserIds,
+    previousMentionUserIds
+  });
 
   return post;
 }
 
 async function deletePost(userId, postId) {
+  const deletedAt = new Date();
   const post = await Post.findOneAndUpdate(
     { id: postId, authorId: userId, deletedAt: null },
-    { deletedAt: new Date(), status: "removed", modifiedAt: new Date() },
+    { deletedAt, status: "removed", modifiedAt: deletedAt },
     { new: true }
   );
 
@@ -305,12 +335,53 @@ async function deletePost(userId, postId) {
     throw new AppError("Post not found", 404);
   }
 
+  await User.updateOne({ id: userId }, { $inc: { "stats.postCount": -1 } });
+
   if (["repost", "quote_repost"].includes(post.type) && post.originalPostId) {
     await Promise.all([
       Repost.deleteOne({ userId, postId: post.originalPostId, type: post.type }),
       Post.updateOne({ id: post.originalPostId }, { $inc: { "stats.repostCount": -1 } }),
       User.updateOne({ id: userId }, { $inc: { "stats.repostCount": -1 } })
     ]);
+  } else {
+    const dependentReposts = await Post.find({
+      originalPostId: post.id,
+      type: { $in: ["repost", "quote_repost"] },
+      deletedAt: null
+    })
+      .select("id authorId")
+      .lean();
+
+    if (dependentReposts.length) {
+      await Promise.all([
+        Post.updateMany(
+          { id: { $in: dependentReposts.map((entry) => entry.id) } },
+          { deletedAt, status: "removed", modifiedAt: deletedAt }
+        ),
+        Repost.deleteMany({ postId: post.id })
+      ]);
+
+      const repostCountByAuthor = dependentReposts.reduce((accumulator, entry) => {
+        accumulator[entry.authorId] = (accumulator[entry.authorId] || 0) + 1;
+        return accumulator;
+      }, {});
+
+      const userBulkUpdates = Object.entries(repostCountByAuthor).map(([authorId, count]) => ({
+        updateOne: {
+          filter: { id: authorId },
+          update: {
+            $inc: {
+              "stats.postCount": -count,
+              "stats.repostCount": -count
+            }
+          }
+        }
+      }));
+
+      if (userBulkUpdates.length) {
+        await User.bulkWrite(userBulkUpdates);
+      }
+    }
   }
 
   return { success: true };
@@ -358,6 +429,11 @@ async function repostPost(userId, postId, payload) {
 
   await Post.updateOne({ id: postId }, { $inc: { "stats.repostCount": 1 } });
   await User.updateOne({ id: userId }, { $inc: { "stats.repostCount": 1 } });
+  await notifyNewPostMentions({
+    actorId: userId,
+    postId: repostPost.id,
+    mentionUserIds: repostPost.mentionUserIds || []
+  });
   return repostPost;
 }
 

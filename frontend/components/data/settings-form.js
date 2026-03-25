@@ -272,6 +272,46 @@ export default function SettingsForm() {
                     Square avatar recommended. Banner accepts wide images.
                   </div>
                 </div>
+                {(mediaState.avatarUrl || mediaState.bannerUrl) ? (
+                  <div className="grid gap-4 border-t border-white/10 px-5 pb-5 pt-4 md:grid-cols-2">
+                    <div className="rounded-2xl border border-white/10 bg-[#0e0d0d] p-4">
+                      <div className="mb-3 editorial-title text-[11px] font-bold uppercase tracking-[0.24em] text-muted">
+                        Avatar Preview
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <SquareAvatar
+                          size="lg"
+                          initials={(profile?.displayName || user?.username || "LI").slice(0, 2).toUpperCase()}
+                          src={mediaState.avatarUrl}
+                          alt={`${profile?.displayName || user?.username || "LInked"} avatar preview`}
+                        />
+                        <div className="min-w-0 text-xs text-muted">
+                          {mediaState.avatarUrl ? (
+                            <div className="truncate text-[#ece7e2]">{mediaState.avatarUrl}</div>
+                          ) : (
+                            <div>No avatar uploaded yet.</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-[#0e0d0d] p-4">
+                      <div className="mb-3 editorial-title text-[11px] font-bold uppercase tracking-[0.24em] text-muted">
+                        Banner Preview
+                      </div>
+                      {mediaState.bannerUrl ? (
+                        <div className="space-y-3">
+                          <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={mediaState.bannerUrl} alt="Banner preview" className="h-24 w-full object-cover" />
+                          </div>
+                          <div className="truncate text-xs text-[#ece7e2]">{mediaState.bannerUrl}</div>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-muted">No banner uploaded yet.</div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
               </div>
               <Input {...profileForm.register("displayName")} placeholder="Display name" />
               <Textarea {...profileForm.register("bio")} placeholder="Bio" />

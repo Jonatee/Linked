@@ -1,4 +1,5 @@
 const AppError = require("../../utils/app-error");
+const { extractMentions } = require("../../utils/helpers");
 const Comment = require("./comment.model");
 const Post = require("../posts/post.model");
 const Reaction = require("../reactions/reaction.model");
@@ -6,7 +7,30 @@ const Notification = require("../notifications/notification.model");
 const User = require("../users/user.model");
 const Profile = require("../profiles/profile.model");
 const Media = require("../media/media.model");
+const notificationService = require("../notifications/notifications.service");
 const blockingService = require("../users/blocking.service");
+
+async function hydrateMentionIds(content) {
+  const usernames = extractMentions(content);
+  const users = await User.find({ username: { $in: usernames }, deletedAt: null }).lean();
+  return users.map((user) => user.id);
+}
+
+async function notifyNewCommentMentions({ actorId, commentId, mentionUserIds = [], previousMentionUserIds = [] }) {
+  const newMentionUserIds = mentionUserIds.filter((recipientId) => !previousMentionUserIds.includes(recipientId));
+
+  if (!newMentionUserIds.length) {
+    return;
+  }
+
+  await notificationService.createMentionNotifications({
+    recipientIds: newMentionUserIds,
+    actorId,
+    entityType: "comment",
+    entityId: commentId,
+    message: "mentioned you in a comment"
+  });
+}
 
 async function enrichComments(comments) {
   const safeComments = comments || [];
@@ -59,13 +83,15 @@ async function createComment(authorId, postId, payload, parentCommentId = null) 
     rootCommentId = parentComment.rootCommentId || parentComment.id;
   }
 
+  const mentionUserIds = await hydrateMentionIds(payload.content);
   const comment = await Comment.create({
     postId,
     authorId,
     parentCommentId,
     rootCommentId,
     content: payload.content,
-    plainTextContent: payload.content.toLowerCase()
+    plainTextContent: payload.content.toLowerCase(),
+    mentionUserIds
   });
 
   await Post.updateOne({ id: postId }, { $inc: { "stats.commentCount": 1 } });
@@ -77,6 +103,11 @@ async function createComment(authorId, postId, payload, parentCommentId = null) 
     entityType: "comment",
     entityId: comment.id,
     message: parentCommentId ? "replied in your thread" : "commented on your post"
+  });
+  await notifyNewCommentMentions({
+    actorId: authorId,
+    commentId: comment.id,
+    mentionUserIds
   });
 
   return comment;
@@ -98,12 +129,20 @@ async function updateComment(userId, commentId, payload) {
     throw new AppError("Comment not found", 404);
   }
 
+  const previousMentionUserIds = [...(comment.mentionUserIds || [])];
   comment.content = payload.content;
   comment.plainTextContent = payload.content.toLowerCase();
+  comment.mentionUserIds = await hydrateMentionIds(payload.content);
   comment.isEdited = true;
   comment.editedAt = new Date();
   comment.modifiedAt = new Date();
   await comment.save();
+  await notifyNewCommentMentions({
+    actorId: userId,
+    commentId: comment.id,
+    mentionUserIds: comment.mentionUserIds,
+    previousMentionUserIds
+  });
 
   return comment;
 }

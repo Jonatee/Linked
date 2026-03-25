@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { Repeat2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
 import RichContent from "@/components/content/rich-content";
 import MediaGallery from "@/components/feed/media-gallery";
@@ -7,6 +10,17 @@ import PostActions from "@/components/feed/post-actions";
 import PostMoreMenu from "@/components/feed/post-more-menu";
 
 export default function FeedCard({ post }) {
+  const router = useRouter();
+
+  function handleOriginalPostClick(event, postId) {
+    const interactiveTarget = event.target.closest("a, button, video, [role='button']");
+    if (interactiveTarget && interactiveTarget !== event.currentTarget) {
+      return;
+    }
+
+    router.push(`/posts/${postId}`);
+  }
+
   return (
     <article className="border-b border-white/10 px-4 py-4 transition hover:bg-[#1a1818] md:px-5">
       {post.type === "repost" || post.type === "quote_repost" ? (
@@ -39,20 +53,52 @@ export default function FeedCard({ post }) {
           ) : null}
           {post.media?.length ? <MediaGallery media={post.media} /> : null}
           {post.originalPost ? (
-            <div className="mt-3 rounded-[18px] border border-white/10 bg-[#121212] p-3">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={(event) => handleOriginalPostClick(event, post.originalPost.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  router.push(`/posts/${post.originalPost.id}`);
+                }
+              }}
+              className="mt-3 rounded-[18px] border border-white/10 bg-[#121212] p-3 text-left transition hover:border-white/20"
+            >
               <div className="flex items-center gap-2.5">
-                <SquareAvatar
-                  initials={post.originalPost.author.initials}
-                  src={post.originalPost.author.avatarUrl}
-                  alt={post.originalPost.author.name}
-                  size="sm"
-                />
+                <Link href={`/profile/${post.originalPost.author.username}`} className="shrink-0">
+                  <SquareAvatar
+                    initials={post.originalPost.author.initials}
+                    src={post.originalPost.author.avatarUrl}
+                    alt={post.originalPost.author.name}
+                    size="sm"
+                  />
+                </Link>
                 <div>
-                  <div className="text-sm font-semibold text-white">{post.originalPost.author.name}</div>
-                  <div className="text-xs text-muted">@{post.originalPost.author.username}</div>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <Link
+                      href={`/profile/${post.originalPost.author.username}`}
+                      className="text-sm font-semibold text-white transition hover:text-accent"
+                    >
+                      {post.originalPost.author.name}
+                    </Link>
+                    <Link
+                      href={`/profile/${post.originalPost.author.username}`}
+                      className="text-xs text-muted transition hover:text-white"
+                    >
+                      @{post.originalPost.author.username}
+                    </Link>
+                    <Link href={`/posts/${post.originalPost.id}`} className="text-xs text-muted transition hover:text-white">
+                      {post.originalPost.createdAtLabel}
+                    </Link>
+                  </div>
                 </div>
               </div>
-              <RichContent className="mt-2 text-sm leading-6 text-[#ece7e2]" content={post.originalPost.content} />
+              {post.originalPost.content ? (
+                <div className="mt-2">
+                  <RichContent className="text-sm leading-6 text-[#ece7e2]" content={post.originalPost.content} />
+                </div>
+              ) : null}
               <MediaGallery media={post.originalPost.media || []} />
               {post.type === "quote_repost" ? (
                 <div className="editorial-title mt-3 text-[10px] font-bold tracking-[0.2em] text-muted">Quote repost</div>

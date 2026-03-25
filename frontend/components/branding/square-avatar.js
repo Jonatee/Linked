@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-export default function SquareAvatar({ src, alt, size = "md", initials = "LI", className }) {
+export default function SquareAvatar({ src, alt, size = "md", initials = "LI", className, onClick }) {
   const sizes = {
     sm: "h-10 w-10 text-xs",
     md: "h-14 w-14 text-sm",
@@ -8,7 +8,22 @@ export default function SquareAvatar({ src, alt, size = "md", initials = "LI", c
   };
 
   return (
-    <div className={cn("accent-frame inline-block", className)}>
+    <div
+      className={cn("accent-frame inline-block", onClick ? "cursor-pointer" : "", className)}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <div
         className={cn(
           "flex items-center justify-center overflow-hidden rounded-2xl border border-black/10 bg-accentDark text-white",
@@ -25,4 +40,3 @@ export default function SquareAvatar({ src, alt, size = "md", initials = "LI", c
     </div>
   );
 }
-

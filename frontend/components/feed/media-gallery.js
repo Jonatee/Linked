@@ -53,7 +53,7 @@ export default function MediaGallery({ media = [] }) {
           <div
             key={item.id}
             className={`overflow-hidden rounded-[20px] border border-white/10 bg-[#0e0e0e] ${
-              isSingle ? "" : "w-[88%] max-w-[420px] shrink-0 snap-start"
+              isSingle ? "" : "w-[92%] max-w-[420px] shrink-0 snap-start sm:w-[88%]"
             }`}
           >
             <div
@@ -67,7 +67,7 @@ export default function MediaGallery({ media = [] }) {
                 }
               }}
               className={`relative block w-full overflow-hidden bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_45%),linear-gradient(180deg,#171515_0%,#0d0d0d_100%)] text-left ${
-                isSingle ? "max-h-[340px]" : "aspect-[16/10] p-3"
+                isSingle ? "max-h-[260px] sm:max-h-[340px]" : "aspect-[16/10] p-2.5 sm:p-3"
               }`}
             >
               <div className={isSingle ? "" : "h-full w-full"}>
@@ -79,7 +79,7 @@ export default function MediaGallery({ media = [] }) {
                         src={item.posterUrl}
                         alt={item.alt || "Video preview"}
                         className={`w-full rounded-[14px] bg-black ${
-                          isSingle ? "max-h-[340px] object-cover" : "h-full object-contain"
+                          isSingle ? "max-h-[260px] object-cover sm:max-h-[340px]" : "h-full object-contain"
                         }`}
                         onError={() =>
                           setPosterFailures((current) => ({
@@ -91,17 +91,17 @@ export default function MediaGallery({ media = [] }) {
                     ) : (
                       <div
                         className={`w-full rounded-[14px] bg-black ${
-                          isSingle ? "h-[220px]" : "h-full min-h-[180px]"
+                          isSingle ? "h-[180px] sm:h-[220px]" : "h-full min-h-[160px] sm:min-h-[180px]"
                         }`}
                       />
                     )}
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
-                        <Play size={18} fill="currentColor" />
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white shadow-[0_12px_30px_rgba(0,0,0,0.35)] sm:h-14 sm:w-14">
+                        <Play size={16} fill="currentColor" className="sm:h-[18px] sm:w-[18px]" />
                       </div>
                     </div>
-                    <div className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-2 rounded-full border border-white/10 bg-black/65 px-2.5 py-1 text-[11px] font-medium text-white">
+                    <div className="pointer-events-none absolute bottom-2 left-2 flex items-center gap-2 rounded-full border border-white/10 bg-black/65 px-2 py-1 text-[10px] font-medium text-white sm:bottom-3 sm:left-3 sm:px-2.5 sm:text-[11px]">
                       <span>{formatDuration(item.duration)}</span>
                     </div>
                   </div>
@@ -111,13 +111,13 @@ export default function MediaGallery({ media = [] }) {
                     src={item.url}
                     alt={item.alt || "Post media"}
                     className={`w-full rounded-[14px] ${
-                      isSingle ? "max-h-[340px] object-cover" : "h-full object-contain"
+                      isSingle ? "max-h-[260px] object-cover sm:max-h-[340px]" : "h-full object-contain"
                     }`}
                   />
                 )}
               </div>
               {isMulti ? (
-                <div className="pointer-events-none absolute right-3 top-3 rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-[11px] font-medium text-white">
+                <div className="pointer-events-none absolute right-2 top-2 rounded-full border border-white/10 bg-black/55 px-2 py-1 text-[10px] font-medium text-white sm:right-3 sm:top-3 sm:px-2.5 sm:text-[11px]">
                   {index + 1}/{media.length}
                 </div>
               ) : null}
@@ -127,7 +127,7 @@ export default function MediaGallery({ media = [] }) {
       </div>
 
       {activeItem ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 p-2 sm:p-4 backdrop-blur-md">
           <button
             type="button"
             className="absolute inset-0 cursor-default"
@@ -137,12 +137,12 @@ export default function MediaGallery({ media = [] }) {
           <button
             type="button"
             onClick={() => setActiveItem(null)}
-            className="absolute right-4 top-4 z-[121] flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#141414] text-white transition hover:bg-[#1f1f1f]"
+            className="absolute right-3 top-3 z-[121] flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#141414] text-white transition hover:bg-[#1f1f1f] sm:right-4 sm:top-4 sm:h-11 sm:w-11"
             aria-label="Close media preview"
           >
-            <X size={18} />
+          <X size={18} />
           </button>
-          <div className="relative z-[121] max-h-[90vh] max-w-[92vw] overflow-hidden rounded-[24px] border border-white/10 bg-[#0b0b0b] p-3 shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
+          <div className="relative z-[121] max-h-[92vh] w-full max-w-[96vw] overflow-hidden rounded-[20px] border border-white/10 bg-[#0b0b0b] p-2 sm:max-h-[90vh] sm:max-w-[92vw] sm:rounded-[24px] sm:p-3 shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
             {activeItem.type === "video" ? (
               <video
                 src={activeItem.playbackUrl || activeItem.url}
@@ -152,14 +152,14 @@ export default function MediaGallery({ media = [] }) {
                 poster={activeItem.posterUrl || undefined}
                 controlsList="nodownload noplaybackrate"
                 disablePictureInPicture
-                className="max-h-[calc(90vh-24px)] max-w-[92vw] rounded-[18px] bg-black"
+                className="max-h-[calc(92vh-16px)] w-full rounded-[16px] bg-black sm:max-h-[calc(90vh-24px)] sm:max-w-[92vw] sm:rounded-[18px]"
               />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={activeItem.url}
                 alt={activeItem.alt || "Expanded post media"}
-                className="max-h-[calc(90vh-24px)] max-w-[calc(92vw-24px)] rounded-[18px] object-contain"
+                className="max-h-[calc(92vh-16px)] w-full rounded-[16px] object-contain sm:max-h-[calc(90vh-24px)] sm:max-w-[calc(92vw-24px)] sm:rounded-[18px]"
               />
             )}
           </div>

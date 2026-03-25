@@ -32,43 +32,45 @@ function PulseChart({ stats }) {
   const maxValue = Math.max(...points.map((point) => point.value), 1);
 
   return (
-    <section className="panel overflow-hidden p-6">
-      <div className="flex items-center justify-between gap-4">
+    <section className="panel overflow-hidden p-4 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="editorial-title text-xs font-bold text-muted">Platform Pulse</div>
           <p className="mt-2 max-w-xl text-sm text-muted">
             A quick visual of the current admin-facing volume across the core LInked system surfaces.
           </p>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-[#141212] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-muted">
+        <div className="w-fit rounded-2xl border border-white/10 bg-[#141212] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-muted">
           Live snapshot
         </div>
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
-        <div className="relative rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,#181414_0%,#121111_100%)] p-5">
+      <div className="mt-6 grid gap-4 lg:mt-8 lg:gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
+        <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,#181414_0%,#121111_100%)] p-4 sm:p-5">
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:24px_24px]" />
-          <div className="relative flex h-56 items-end gap-3">
+          <div className="relative flex h-40 items-end gap-2 sm:h-48 sm:gap-3 lg:h-56">
             {points.map((point) => {
               const height = `${Math.max((point.value / maxValue) * 100, 12)}%`;
 
               return (
-                <div key={point.label} className="flex flex-1 flex-col items-center gap-3">
-                  <div className="text-xs font-semibold text-white">{point.value}</div>
+                <div key={point.label} className="flex min-w-0 flex-1 flex-col items-center gap-2 sm:gap-3">
+                  <div className="text-[11px] font-semibold text-white sm:text-xs">{point.value}</div>
                   <div className="flex h-full w-full items-end">
                     <div
-                      className={`w-full rounded-t-[18px] bg-gradient-to-t ${point.color} shadow-[0_18px_40px_rgba(0,0,0,0.28)]`}
+                      className={`w-full rounded-t-[14px] sm:rounded-t-[18px] bg-gradient-to-t ${point.color} shadow-[0_18px_40px_rgba(0,0,0,0.28)]`}
                       style={{ height }}
                     />
                   </div>
-                  <div className="text-[11px] uppercase tracking-[0.14em] text-muted">{point.label}</div>
+                  <div className="text-[10px] uppercase tracking-[0.1em] text-muted sm:text-[11px] sm:tracking-[0.14em]">
+                    {point.label}
+                  </div>
                 </div>
               );
             })}
           </div>
         </div>
 
-        <div className="grid gap-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
           {points.map((point) => (
             <div key={point.label} className="rounded-[20px] border border-white/10 bg-[#141212] p-4">
               <div className="text-[11px] uppercase tracking-[0.18em] text-muted">{point.label}</div>
