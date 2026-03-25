@@ -13,6 +13,8 @@ router.delete("/:userId/block", requireAuth, controller.unblock);
 router.get("/:username/followers", controller.followers);
 router.get("/:username/following", controller.following);
 router.get("/:username/posts", optionalAuth, controller.posts);
+router.get("/:username/comments", optionalAuth, controller.comments);
+router.get("/:username/likes", optionalAuth, controller.likes);
 router.get("/:username", optionalAuth, controller.getByUsername);
 
 module.exports = router;

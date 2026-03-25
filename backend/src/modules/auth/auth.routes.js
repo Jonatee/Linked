@@ -8,13 +8,14 @@ const validation = require("./auth.validation");
 const router = express.Router();
 
 router.post("/register", authRateLimiter, validate(validation.registerSchema), controller.register);
+router.post("/verify-email", authRateLimiter, validate(validation.verifyEmailSchema), controller.verifyEmail);
 router.post("/login", authRateLimiter, validate(validation.loginSchema), controller.login);
 router.post("/refresh", validate(validation.refreshSchema), controller.refresh);
 router.post("/logout", requireAuth, controller.logout);
 router.post("/logout-all", requireAuth, controller.logoutAll);
 router.post("/forgot-password", validate(validation.forgotPasswordSchema), controller.forgotPassword);
 router.post("/reset-password", validate(validation.resetPasswordSchema), controller.resetPassword);
+router.post("/change-password", requireAuth, validate(validation.changePasswordSchema), controller.changePassword);
 router.get("/me", requireAuth, controller.me);
 
 module.exports = router;
-

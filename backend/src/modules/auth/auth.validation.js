@@ -20,8 +20,19 @@ const forgotPasswordSchema = Joi.object({
 });
 
 const resetPasswordSchema = Joi.object({
-  token: Joi.string().required(),
+  email: Joi.string().email().required(),
+  code: Joi.string().length(6).required(),
   password: Joi.string().min(8).max(64).required()
+});
+
+const verifyEmailSchema = Joi.object({
+  email: Joi.string().email().required(),
+  code: Joi.string().length(6).required()
+});
+
+const changePasswordSchema = Joi.object({
+  currentPassword: Joi.string().required(),
+  newPassword: Joi.string().min(8).max(64).required()
 });
 
 module.exports = {
@@ -29,6 +40,7 @@ module.exports = {
   loginSchema,
   refreshSchema,
   forgotPasswordSchema,
-  resetPasswordSchema
+  resetPasswordSchema,
+  verifyEmailSchema,
+  changePasswordSchema
 };
-

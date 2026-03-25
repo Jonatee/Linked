@@ -1,62 +1,50 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import GuestOnly from "@/components/auth/guest-only";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 
-export default function RegisterPage() {
+export default function ResetPasswordPage() {
   const router = useRouter();
-  const [submitError, setSubmitError] = useState("");
+  const searchParams = useSearchParams();
   const form = useForm({
     defaultValues: {
-      username: "",
-      email: "",
+      email: searchParams.get("email") || "",
+      code: "",
       password: "",
       confirmPassword: ""
     }
   });
 
   async function onSubmit(values) {
-    setSubmitError("");
-
-    try {
-      await api.post("/auth/register", {
-        username: values.username,
-        email: values.email,
-        password: values.password
-      });
-      router.push(`/auth/verify-email?email=${encodeURIComponent(values.email)}`);
-    } catch (error) {
-      const message = error.response?.data?.message || "Registration failed";
-      const details = error.response?.data?.error || null;
-
-      setSubmitError(message);
-
-      if (details?.code === "email_not_verified" && details?.email) {
-        router.push(`/auth/verify-email?email=${encodeURIComponent(details.email)}`);
-      }
-    }
+    await api.post("/auth/reset-password", {
+      email: values.email,
+      code: values.code,
+      password: values.password
+    });
+    router.push("/auth/login");
   }
 
   return (
     <GuestOnly>
       <main className="subtle-grid mx-auto flex min-h-screen items-center justify-center px-4">
         <form onSubmit={form.handleSubmit(onSubmit)} className="panel w-full max-w-md p-8">
-          <div className="mb-2 text-xs uppercase tracking-[0.3em] text-muted">Claim your square in the feed</div>
-          <div className="editorial-title text-3xl font-black text-white">Create your LInked account</div>
-          {submitError ? <p className="mt-3 text-sm text-accent">{submitError}</p> : null}
+          <div className="mb-2 text-xs uppercase tracking-[0.3em] text-muted">Reset password</div>
+          <div className="editorial-title text-3xl font-black text-white">Choose a new password</div>
+          <p className="mt-3 text-sm text-muted">
+            Enter the reset code from your email, then set your new password.
+          </p>
           <div className="mt-6 grid gap-4">
-            <Input placeholder="Username" {...form.register("username", { required: true })} />
             <Input type="email" placeholder="Email" {...form.register("email", { required: true })} />
-            <PasswordInput placeholder="Password" {...form.register("password", { required: true })} />
+            <Input placeholder="6-digit code" maxLength={6} {...form.register("code", { required: true })} />
+            <PasswordInput placeholder="New password" {...form.register("password", { required: true })} />
             <PasswordInput
-              placeholder="Confirm password"
+              placeholder="Confirm new password"
               {...form.register("confirmPassword", {
                 required: true,
                 validate: (value) => value === form.getValues("password") || "Passwords do not match"
@@ -66,11 +54,11 @@ export default function RegisterPage() {
               <p className="text-xs text-accent">{form.formState.errors.confirmPassword.message}</p>
             ) : null}
             <Button type="submit" loading={form.formState.isSubmitting}>
-              Register
+              Reset password
             </Button>
           </div>
           <p className="mt-4 text-sm text-muted">
-            Already have an account? <Link href="/auth/login" className="text-accent">Login</Link>
+            Back to <Link href="/auth/login" className="text-accent">Login</Link>
           </p>
         </form>
       </main>

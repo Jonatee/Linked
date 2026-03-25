@@ -1,13 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
 import api from "@/lib/api";
 import ProfileHeader from "@/components/profile/profile-header";
 import FeedCard from "@/components/feed/feed-card";
 import { formatPost } from "@/lib/formatters";
 import { FeedSkeleton, ProfileSkeleton } from "@/components/loading/screen-skeletons";
 import useAuthStore from "@/stores/auth-store";
-import { useEffect, useRef } from "react";
 
 function LoadMoreTrigger({ onVisible, disabled }) {
   const ref = useRef(null);
@@ -38,8 +39,45 @@ function LoadMoreTrigger({ onVisible, disabled }) {
   return <div ref={ref} className="h-8 w-full" aria-hidden="true" />;
 }
 
+function CommentCard({ comment }) {
+  return (
+    <article className="rounded-[20px] border border-white/10 bg-[#141212] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <Link href={`/profile/${comment.author?.username || "unknown"}`} className="text-sm font-semibold text-white transition hover:text-accent">
+            {comment.author?.profile?.displayName || comment.author?.usernameDisplay || "Unknown"}
+          </Link>
+          <div className="mt-1 text-xs text-muted">
+            @{comment.author?.username || "unknown"} - {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : "now"}
+          </div>
+        </div>
+        {comment.post?.id ? (
+          <Link href={`/posts/${comment.post.id}`} className="text-xs font-medium text-accent transition hover:text-white">
+            View post
+          </Link>
+        ) : null}
+      </div>
+      <p className="mt-3 text-sm leading-6 text-[#ece7e2]">{comment.content}</p>
+      {comment.post ? (
+        <div className="mt-4 rounded-[16px] border border-white/10 bg-[#100f0f] p-3">
+          <div className="text-[11px] uppercase tracking-[0.16em] text-muted">Commented on</div>
+          <div className="mt-2 text-sm text-white">
+            {comment.post.author?.profile?.displayName || comment.post.author?.usernameDisplay || comment.post.author?.username || "Unknown"}
+          </div>
+          <div className="mt-1 text-xs text-muted">@{comment.post.author?.username || "unknown"}</div>
+          <p className="mt-3 line-clamp-3 text-sm leading-6 text-[#d9d1cb]">
+            {comment.post.content || "This post has no text content."}
+          </p>
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
 export default function ProfileFeed({ username }) {
   const currentUser = useAuthStore((state) => state.currentUser);
+  const [activeTab, setActiveTab] = useState("posts");
+
   const profileQuery = useQuery({
     queryKey: ["profile", username, currentUser?.username || null],
     queryFn: async () => {
@@ -62,14 +100,32 @@ export default function ProfileFeed({ username }) {
   });
 
   const profileData = profileQuery.data;
-  const canLoadPosts =
+  const canLoadTimeline =
     Boolean(profileData?.user?.viewerState?.isSelf) || profileData?.user?.viewerState?.canInteract !== false;
 
-  const postsQuery = useInfiniteQuery({
-    queryKey: ["profile-posts", username],
+  const timelineConfig = useMemo(
+    () => ({
+      posts: {
+        endpoint: `/users/${username}/posts`,
+        emptyMessage: "No posts yet."
+      },
+      comments: {
+        endpoint: `/users/${username}/comments`,
+        emptyMessage: "No comments yet."
+      },
+      likes: {
+        endpoint: `/users/${username}/likes`,
+        emptyMessage: "No liked posts yet."
+      }
+    }),
+    [username]
+  );
+
+  const timelineQuery = useInfiniteQuery({
+    queryKey: ["profile-timeline", username, activeTab],
     initialPageParam: null,
     queryFn: async ({ pageParam }) => {
-      const response = await api.get(`/users/${username}/posts`, {
+      const response = await api.get(timelineConfig[activeTab].endpoint, {
         params: {
           ...(pageParam ? { cursor: pageParam } : {})
         }
@@ -84,7 +140,7 @@ export default function ProfileFeed({ username }) {
       };
     },
     getNextPageParam: (lastPage) => (lastPage.pageInfo?.hasMore ? lastPage.pageInfo?.nextCursor : undefined),
-    enabled: Boolean(username && profileData && canLoadPosts)
+    enabled: Boolean(username && profileData && canLoadTimeline)
   });
 
   if (profileQuery.isLoading) {
@@ -95,7 +151,7 @@ export default function ProfileFeed({ username }) {
     return <div className="panel p-6 text-sm text-accent">Failed to load profile.</div>;
   }
 
-  const posts = (postsQuery.data?.pages || []).flatMap((page) => page.items || []);
+  const items = (timelineQuery.data?.pages || []).flatMap((page) => page.items || []);
 
   return (
     <>
@@ -120,26 +176,40 @@ export default function ProfileFeed({ username }) {
         }}
       />
       <div className="space-y-4">
-        {!canLoadPosts && !profileData.user.viewerState?.isSelf ? (
-          <div className="panel p-6 text-sm text-muted">Posts are hidden because this relationship is blocked.</div>
+        {!canLoadTimeline && !profileData.user.viewerState?.isSelf ? (
+          <div className="panel p-6 text-sm text-muted">Content is hidden because this relationship is blocked.</div>
         ) : null}
-        {!posts.length && !postsQuery.isLoading && canLoadPosts ? (
-          <div className="panel p-6 text-sm text-muted">No posts yet.</div>
+        <div className="flex flex-wrap items-center gap-2 border-b border-white/10 pb-3">
+          {["posts", "comments", "likes"].map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              className={`rounded-full px-4 py-2 text-sm font-medium capitalize transition ${
+                activeTab === tab ? "bg-accent text-white" : "bg-[#171515] text-muted hover:text-white"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+        {!items.length && !timelineQuery.isLoading && canLoadTimeline ? (
+          <div className="panel p-6 text-sm text-muted">{timelineConfig[activeTab].emptyMessage}</div>
         ) : null}
-        {posts.map((post) => (
-          <FeedCard key={post.id} post={formatPost(post)} />
-        ))}
-        {postsQuery.hasNextPage ? (
+        {activeTab === "comments"
+          ? items.map((comment) => <CommentCard key={comment.id} comment={comment} />)
+          : items.map((post) => <FeedCard key={post.id} post={formatPost(post)} />)}
+        {timelineQuery.hasNextPage ? (
           <LoadMoreTrigger
-            disabled={postsQuery.isFetchingNextPage}
+            disabled={timelineQuery.isFetchingNextPage}
             onVisible={() => {
-              if (!postsQuery.isFetchingNextPage) {
-                postsQuery.fetchNextPage();
+              if (!timelineQuery.isFetchingNextPage) {
+                timelineQuery.fetchNextPage();
               }
             }}
           />
         ) : null}
-        {postsQuery.isFetchingNextPage ? <FeedSkeleton count={1} /> : null}
+        {timelineQuery.isFetchingNextPage ? <FeedSkeleton count={1} /> : null}
       </div>
     </>
   );
