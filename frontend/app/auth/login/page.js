@@ -9,6 +9,7 @@ import GuestOnly from "@/components/auth/guest-only";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { resetSessionCheckAttempts } from "@/lib/session-check";
+import { getPostAuthRedirectPath } from "@/lib/auth-redirect";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,11 +24,23 @@ export default function LoginPage() {
   async function onSubmit(values) {
     const response = await api.post("/auth/login", values);
     resetSessionCheckAttempts();
+    const accessToken = response.data.data.accessToken;
     setSession({
-      accessToken: response.data.data.accessToken,
+      accessToken,
       user: response.data.data.user
     });
-    router.push("/home");
+
+    const meResponse = await api.get("/auth/me");
+    const user = {
+      ...meResponse.data.data.user,
+      profile: meResponse.data.data.profile || null
+    };
+
+    setSession({
+      accessToken,
+      user
+    });
+    router.push(getPostAuthRedirectPath(user));
   }
 
   return (

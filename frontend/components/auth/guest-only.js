@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { canAttemptSessionCheck, recordSessionCheckAttempt, resetSessionCheckAttempts } from "@/lib/session-check";
+import { getPostAuthRedirectPath } from "@/lib/auth-redirect";
 
 export default function GuestOnly({ children }) {
   const router = useRouter();
@@ -27,10 +28,10 @@ export default function GuestOnly({ children }) {
 
       try {
         recordSessionCheckAttempt();
-        await api.get("/auth/me");
+        const response = await api.get("/auth/me");
         if (mounted) {
           resetSessionCheckAttempts();
-          router.replace("/home");
+          router.replace(getPostAuthRedirectPath(response.data.data.user));
         }
       } catch (error) {
         if (mounted) {

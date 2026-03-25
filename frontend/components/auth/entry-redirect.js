@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import useAuthStore from "@/stores/auth-store";
 import { canAttemptSessionCheck, recordSessionCheckAttempt, resetSessionCheckAttempts } from "@/lib/session-check";
+import { getPostAuthRedirectPath } from "@/lib/auth-redirect";
 
-export default function EntryRedirect({ authenticatedPath = "/home", unauthenticatedPath = "/auth/login" }) {
+export default function EntryRedirect({ authenticatedPath, unauthenticatedPath = "/auth/login" }) {
   const router = useRouter();
   const setSession = useAuthStore((state) => state.setSession);
   const clearSession = useAuthStore((state) => state.clearSession);
@@ -44,7 +45,7 @@ export default function EntryRedirect({ authenticatedPath = "/home", unauthentic
             profile: response.data.data.profile || null
           }
         });
-        router.replace(authenticatedPath);
+        router.replace(authenticatedPath || getPostAuthRedirectPath(response.data.data.user));
       } catch (error) {
         if (!mounted) {
           return;

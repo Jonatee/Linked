@@ -4,11 +4,13 @@ const env = require("./config/env");
 const { connectMongo } = require("./db/mongoose");
 const { connectRedis } = require("./db/redis");
 const { logInfo, logError } = require("./config/logger");
+const { verifyMailer } = require("./config/mailer");
 
 async function start() {
   try {
     await connectMongo();
     await connectRedis();
+    await verifyMailer();
 
     const server = http.createServer(app);
     server.listen(env.port, () => {
@@ -21,4 +23,3 @@ async function start() {
 }
 
 start();
-

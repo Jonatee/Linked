@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Repeat2 } from "lucide-react";
 import SquareAvatar from "@/components/branding/square-avatar";
+import RichContent from "@/components/content/rich-content";
 import MediaGallery from "@/components/feed/media-gallery";
 import PostActions from "@/components/feed/post-actions";
 import PostMoreMenu from "@/components/feed/post-more-menu";
@@ -33,7 +34,7 @@ export default function FeedCard({ post }) {
           </div>
           <Link href={`/posts/${post.id}`} className="block">
             {post.content ? (
-              <p className="mt-3 whitespace-pre-wrap text-[15px] leading-7 text-[#ece7e2]">{post.content}</p>
+              <RichContent className="mt-3 text-[15px] leading-7 text-[#ece7e2]" content={post.content} />
             ) : null}
             {post.media?.length ? <MediaGallery media={post.media} /> : null}
             {post.originalPost ? (
@@ -50,7 +51,7 @@ export default function FeedCard({ post }) {
                     <div className="text-xs text-muted">@{post.originalPost.author.username}</div>
                   </div>
                 </div>
-                <div className="mt-3 text-sm text-[#ece7e2]">{post.originalPost.content}</div>
+                <RichContent className="mt-3 text-sm text-[#ece7e2]" content={post.originalPost.content} />
                 <MediaGallery media={post.originalPost.media || []} />
                 {post.type === "quote_repost" ? (
                   <div className="editorial-title mt-4 text-[10px] font-bold tracking-[0.2em] text-muted">Quote repost</div>
@@ -59,7 +60,7 @@ export default function FeedCard({ post }) {
             ) : post.quotePost ? (
               <div className="mt-4 rounded-[18px] border border-white/10 bg-[#121212] p-4">
                 <div className="editorial-title text-[10px] font-bold tracking-[0.2em] text-muted">Quote repost</div>
-                <div className="mt-2 text-sm text-[#ece7e2]">{post.quotePost.content}</div>
+                <RichContent className="mt-2 text-sm text-[#ece7e2]" content={post.quotePost.content} />
               </div>
             ) : null}
           </Link>

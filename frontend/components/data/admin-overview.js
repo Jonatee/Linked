@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import AdminTable from "@/components/admin/admin-table";
 import { AdminSkeleton } from "@/components/loading/screen-skeletons";
+import useAuthStore from "@/stores/auth-store";
 
 function StatCard({ label, value }) {
   return (
@@ -15,6 +16,7 @@ function StatCard({ label, value }) {
 }
 
 export default function AdminOverview() {
+  const currentUser = useAuthStore((state) => state.currentUser);
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-overview"],
     queryFn: async () => {
@@ -31,8 +33,17 @@ export default function AdminOverview() {
         logs: logsResponse.data.data,
         reports: reportsResponse.data.data
       };
-    }
+    },
+    enabled: currentUser?.role === "admin"
   });
+
+  if (!currentUser) {
+    return <div className="panel p-6 text-sm text-muted">Load your session to access the admin dashboard.</div>;
+  }
+
+  if (currentUser.role !== "admin") {
+    return <div className="panel p-6 text-sm text-accent">This dashboard is available to admins only.</div>;
+  }
 
   if (isLoading) {
     return <AdminSkeleton />;
@@ -66,12 +77,16 @@ export default function AdminOverview() {
         <AdminTable
           title="Recent Reports"
           columns={["Reason", "Target", "Status"]}
-          rows={(data.reports || []).slice(0, 8).map((report) => [report.reasonCode, report.targetId, report.status])}
+          rows={(data.reports || [])
+            .slice(0, 8)
+            .map((report) => [report.reasonCode || "general", `${report.targetType}:${report.targetId}`, report.status])}
         />
         <AdminTable
           title="Audit Logs"
           columns={["Actor", "Action", "Target"]}
-          rows={(data.logs || []).slice(0, 8).map((log) => [log.actorId, log.actionType, log.targetId])}
+          rows={(data.logs || [])
+            .slice(0, 8)
+            .map((log) => [log.actorId, log.actionType, `${log.targetType}:${log.targetId}`])}
         />
       </div>
     </div>

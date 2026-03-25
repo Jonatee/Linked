@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -6,11 +6,13 @@
 
 :root {
   color-scheme: dark;
+  --font-main: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 }
 
 body {
   @apply bg-surface text-[#e7e3df];
-  font-family: "Inter", sans-serif;
+  font-family: var(--font-main);
   background-image:
     radial-gradient(circle at top left, rgba(224, 36, 36, 0.14), transparent 22%),
     radial-gradient(circle at bottom right, rgba(122, 17, 17, 0.12), transparent 22%),
@@ -38,9 +40,13 @@ body {
 }
 
 .editorial-title {
-  font-family: "Manrope", sans-serif;
+  font-family: var(--font-main);
   letter-spacing: -0.04em;
   text-transform: uppercase;
+}
+
+.font-mono-ui {
+  font-family: var(--font-mono);
 }
 
 .subtle-grid {

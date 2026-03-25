@@ -17,7 +17,7 @@ export default function SessionHydrator() {
       const token =
         typeof window !== "undefined" ? window.localStorage.getItem("linked_access_token") : null;
 
-      if (!token || currentUser) {
+      if (!token || (currentUser && currentUser.profile)) {
         return;
       }
 

@@ -14,15 +14,23 @@ export default function AdminTable({ title, columns = [], rows = [] }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, index) => (
-              <tr key={index} className="border-b border-white/10">
-                {row.map((cell, cellIndex) => (
-                  <td key={cellIndex} className="px-3 py-3 text-[#ece7e2]">
-                    {cell}
-                  </td>
-                ))}
+            {rows.length ? (
+              rows.map((row, index) => (
+                <tr key={index} className="border-b border-white/10">
+                  {row.map((cell, cellIndex) => (
+                    <td key={cellIndex} className="px-3 py-3 text-[#ece7e2]">
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={columns.length || 1} className="px-3 py-6 text-sm text-muted">
+                  No records yet.
+                </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>

@@ -6,6 +6,7 @@ import { Bell, Bookmark, Compass, Home, LogOut, Settings, Shield, User } from "l
 import { useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
 import api from "@/lib/api";
+import { LINKED_LOGO_URL } from "@/lib/brand";
 import useAuthStore from "@/stores/auth-store";
 import useUiStore from "@/stores/ui-store";
 
@@ -55,6 +56,10 @@ export default function LeftSidebar() {
     items.push({ href: "/admin", label: "Admin", icon: Shield });
   }
 
+  if (currentUser?.role === "moderator") {
+    items.push({ href: "/moderator", label: "Moderator", icon: Shield });
+  }
+
   async function handleLogout() {
     try {
       await api.post("/auth/logout");
@@ -69,7 +74,9 @@ export default function LeftSidebar() {
   return (
     <aside className="hidden h-screen border-r border-white/10 bg-[#131313] p-5 lg:flex lg:flex-col">
       <div className="px-3">
-        <div className="editorial-title mb-8 text-3xl font-black text-[#ece7e2]">LInked</div>
+        <div className="mb-8">
+          <img src={LINKED_LOGO_URL} alt="LInked" className="h-14 w-auto rounded-xl object-contain" />
+        </div>
         <div className="mb-8 flex items-center gap-3">
           <SquareAvatar
             initials={initials}

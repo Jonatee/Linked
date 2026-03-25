@@ -23,8 +23,14 @@ const env = {
     apiKey: readEnv("CLOUDINARY_API_KEY"),
     apiSecret: readEnv("CLOUDINARY_API_SECRET"),
     uploadFolder: readEnv("CLOUDINARY_UPLOAD_FOLDER", "linked")
+  },
+  mail: {
+    from: readEnv("EMAIL_FROM", "no-reply@linked.local"),
+    smtpHost: readEnv("SMTP_HOST", "localhost"),
+    smtpPort: Number(readEnv("SMTP_PORT", 1025)),
+    smtpUser: readEnv("SMTP_USER"),
+    smtpPass: readEnv("SMTP_PASS")
   }
 };
 
 module.exports = env;
-

@@ -9,9 +9,26 @@ const UserSettings = require("../users/user-settings.model");
 const Media = require("../media/media.model");
 const authRepository = require("./auth.repository");
 const env = require("../../config/env");
+const { sendMail } = require("../../config/mailer");
+const { PRODUCT_NAME, buildWelcomeEmail, buildResetPasswordEmail } = require("./auth-email.templates");
+const { logInfo, logError } = require("../../config/logger");
 
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function maskEmail(email = "") {
+  const [local, domain] = String(email).split("@");
+  if (!local || !domain) {
+    return email;
+  }
+
+  return `${local.slice(0, 2)}***@${domain}`;
+}
+
+function maskIdentity(identity = "") {
+  const value = String(identity || "").trim().toLowerCase();
+  return value.includes("@") ? maskEmail(value) : value;
 }
 
 async function issueTokens(user, context = {}) {
@@ -27,18 +44,34 @@ async function issueTokens(user, context = {}) {
     expiresAt
   });
 
+  logInfo("Auth session issued", {
+    userId: user.id,
+    role: user.role,
+    hasUserAgent: Boolean(context.userAgent),
+    hasIpAddress: Boolean(context.ipAddress)
+  });
+
   return { accessToken, refreshToken };
 }
 
 async function register(payload, context) {
   const username = normalizeUsername(payload.username);
   const email = normalizeEmail(payload.email);
+  logInfo("Auth register attempt", {
+    username,
+    email: maskEmail(email)
+  });
 
   const existing = await User.findOne({
     $or: [{ username }, { email }]
   });
 
   if (existing) {
+    logInfo("Auth register rejected", {
+      username,
+      email: maskEmail(email),
+      reason: "identity_conflict"
+    });
     throw new AppError("Username or email already in use", 409);
   }
 
@@ -60,6 +93,36 @@ async function register(payload, context) {
   user.profileId = profile.id;
   user.settingsId = settings.id;
   await user.save();
+  logInfo("Auth register success", {
+    userId: user.id,
+    username: user.username,
+    email: maskEmail(user.email)
+  });
+
+  try {
+    const welcomeEmail = buildWelcomeEmail({
+      userName: user.usernameDisplay || user.username,
+      dashboardUrl: `${env.appOrigin}/home`,
+      supportEmail: env.mail.from
+    });
+
+    await sendMail({
+      to: user.email,
+      subject: welcomeEmail.subject,
+      text: welcomeEmail.text,
+      html: welcomeEmail.html
+    });
+    logInfo("Welcome email queued", {
+      userId: user.id,
+      email: maskEmail(user.email)
+    });
+  } catch (error) {
+    logError("Welcome email failed", {
+      userId: user.id,
+      email: maskEmail(user.email),
+      message: error.message
+    });
+  }
 
   const tokens = await issueTokens(user, context);
   return { user, ...tokens };
@@ -67,23 +130,39 @@ async function register(payload, context) {
 
 async function login(payload, context) {
   const identity = String(payload.identity).trim().toLowerCase();
+  logInfo("Auth login attempt", {
+    identity: maskIdentity(identity)
+  });
   const user = await User.findOne({
     $or: [{ email: identity }, { username: identity }],
     deletedAt: null
   });
 
   if (!user) {
+    logInfo("Auth login rejected", {
+      identity: maskIdentity(identity),
+      reason: "user_not_found"
+    });
     throw new AppError("Invalid credentials", 401);
   }
 
   const isValid = await comparePassword(payload.password, user.passwordHash);
   if (!isValid) {
+    logInfo("Auth login rejected", {
+      identity: maskIdentity(identity),
+      userId: user.id,
+      reason: "invalid_password"
+    });
     throw new AppError("Invalid credentials", 401);
   }
 
   user.lastLoginAt = new Date();
   user.modifiedAt = new Date();
   await user.save();
+  logInfo("Auth login success", {
+    userId: user.id,
+    username: user.username
+  });
 
   const tokens = await issueTokens(user, context);
   return { user, ...tokens };
@@ -91,8 +170,14 @@ async function login(payload, context) {
 
 async function refreshToken(refreshToken, context) {
   if (!refreshToken) {
+    logInfo("Auth refresh rejected", {
+      reason: "missing_refresh_token"
+    });
     throw new AppError("Refresh token is required", 401);
   }
+  logInfo("Auth refresh attempt", {
+    hasRefreshToken: Boolean(refreshToken)
+  });
 
   const payload = verifyRefreshToken(refreshToken);
   const session = await authRepository.findOne({
@@ -102,6 +187,10 @@ async function refreshToken(refreshToken, context) {
   });
 
   if (!session) {
+    logInfo("Auth refresh rejected", {
+      userId: payload.sub,
+      reason: "session_not_found"
+    });
     throw new AppError("Refresh session not found", 401);
   }
 
@@ -111,14 +200,30 @@ async function refreshToken(refreshToken, context) {
 
   const user = await User.findOne({ id: payload.sub, deletedAt: null });
   if (!user) {
+    logInfo("Auth refresh rejected", {
+      userId: payload.sub,
+      reason: "user_not_found"
+    });
     throw new AppError("User not found", 404);
   }
+
+  logInfo("Auth refresh success", {
+    userId: user.id
+  });
 
   return issueTokens(user, context);
 }
 
 async function logout(userId, refreshToken) {
+  logInfo("Auth logout attempt", {
+    userId,
+    hasRefreshToken: Boolean(refreshToken)
+  });
   if (!refreshToken) {
+    logInfo("Auth logout skipped", {
+      userId,
+      reason: "missing_refresh_token"
+    });
     return;
   }
 
@@ -126,16 +231,36 @@ async function logout(userId, refreshToken) {
     { userId, refreshTokenHash: hashToken(refreshToken), isRevoked: false },
     { isRevoked: true, revokedAt: new Date(), modifiedAt: new Date() }
   );
+
+  logInfo("Auth logout success", {
+    userId
+  });
 }
 
 async function logoutAll(userId) {
+  logInfo("Auth logout all attempt", {
+    userId
+  });
   await authRepository.revokeAllForUser(userId);
+  logInfo("Auth logout all success", {
+    userId
+  });
 }
 
 async function me(userId) {
+  logInfo("Auth me lookup", {
+    userId
+  });
   const user = await User.findOne({ id: userId }).lean();
   const profile = await Profile.findOne({ userId }).lean();
   const settings = await UserSettings.findOne({ userId }).lean();
+
+  if (!user) {
+    logInfo("Auth me lookup failed", {
+      userId,
+      reason: "user_not_found"
+    });
+  }
 
   if (profile) {
     const mediaIds = [profile.avatarMediaId, profile.bannerMediaId].filter(Boolean);
@@ -155,14 +280,51 @@ async function me(userId) {
 }
 
 async function forgotPassword(email) {
+  const normalizedEmail = normalizeEmail(email);
+  const resetToken = `stub-reset-${Date.now()}`;
+  const resetUrl = `${env.appOrigin}/auth/reset-password?token=${resetToken}`;
+  const user = await User.findOne({ email: normalizedEmail, deletedAt: null }).lean();
+  const userName = user?.usernameDisplay || user?.username || "there";
+  logInfo("Auth forgot-password attempt", {
+    email: maskEmail(normalizedEmail),
+    userFound: Boolean(user)
+  });
+
+  try {
+    const resetEmail = buildResetPasswordEmail({
+      userName,
+      resetUrl,
+      supportEmail: env.mail.from,
+      expirationMinutes: 30
+    });
+
+    await sendMail({
+      to: normalizedEmail,
+      subject: resetEmail.subject,
+      text: resetEmail.text,
+      html: resetEmail.html
+    });
+    logInfo("Reset email queued", {
+      email: maskEmail(normalizedEmail),
+      userFound: Boolean(user)
+    });
+  } catch (error) {
+    logError("Reset email failed", {
+      email: maskEmail(normalizedEmail),
+      userFound: Boolean(user),
+      message: error.message
+    });
+  }
+
   return {
-    email: normalizeEmail(email),
-    resetToken: `stub-reset-${Date.now()}`,
-    message: "Email delivery is stubbed for local development"
+    email: normalizedEmail,
+    resetToken,
+    message: `If an account exists, reset instructions for ${PRODUCT_NAME} have been sent`
   };
 }
 
 async function resetPassword() {
+  logInfo("Auth reset-password scaffold hit");
   return {
     message: "Reset password flow scaffolded for future mail/token verification integration"
   };
