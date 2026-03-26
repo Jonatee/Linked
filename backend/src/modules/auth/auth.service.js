@@ -137,7 +137,7 @@ async function consumeAuthCode({ email, code, purpose }) {
 }
 
 async function sendVerificationEmail(user, code) {
-  const verifyUrl = `${env.appOrigin}/auth/verify-email?email=${encodeURIComponent(user.email)}`;
+  const verifyUrl = `${env.frontendOrigin}/auth/verify-email?email=${encodeURIComponent(user.email)}`;
   const verifyEmail = buildVerifyEmail({
     userName: user.usernameDisplay || user.username,
     verifyUrl,
@@ -168,7 +168,7 @@ async function issueVerificationCode(user) {
 async function sendWelcomeEmail(user) {
   const welcomeEmail = buildWelcomeEmail({
     userName: user.usernameDisplay || user.username,
-    dashboardUrl: `${env.appOrigin}/home`,
+    dashboardUrl: `${env.frontendOrigin}/home`,
     supportEmail: env.mail.from
   });
 
@@ -184,7 +184,7 @@ async function sendPasswordChangedEmail(user) {
   const changedEmail = buildPasswordChangedEmail({
     userName: user.usernameDisplay || user.username,
     changedAt: new Date().toLocaleString(),
-    securityUrl: `${env.appOrigin}/settings`,
+    securityUrl: `${env.frontendOrigin}/settings`,
     supportEmail: env.mail.from
   });
 
@@ -529,7 +529,7 @@ async function forgotPassword(email) {
   try {
     const resetEmail = buildResetPasswordEmail({
       userName: user.usernameDisplay || user.username || "there",
-      resetUrl: `${env.appOrigin}/auth/reset-password?email=${encodeURIComponent(normalizedEmail)}`,
+      resetUrl: `${env.frontendOrigin}/auth/reset-password?email=${encodeURIComponent(normalizedEmail)}`,
       supportEmail: env.mail.from,
       expirationMinutes: RESET_CODE_MINUTES
     });

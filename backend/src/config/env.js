@@ -6,11 +6,16 @@ function readEnv(name, fallback = "") {
   return process.env[name] || fallback;
 }
 
+const nodeEnv = readEnv("NODE_ENV", "development");
+const defaultFrontendOrigin =
+  nodeEnv === "production" ? "https://linked-theta.vercel.app" : "http://localhost:3000";
+
 const env = {
-  nodeEnv: readEnv("NODE_ENV", "development"),
+  nodeEnv,
   appName: readEnv("APP_NAME", "LInked"),
   port: Number(readEnv("PORT", readEnv("BACKEND_PORT", 5000))),
   appOrigin: readEnv("APP_ORIGIN", "http://localhost:3000"),
+  frontendOrigin: readEnv("FRONTEND_ORIGIN", defaultFrontendOrigin),
   mongoUri: readEnv("MONGODB_URI", "mongodb://localhost:27017/linked"),
   redisUrl: readEnv("REDIS_URL", "redis://localhost:6379"),
   jwtAccessSecret: readEnv("JWT_ACCESS_SECRET", "access-secret"),

@@ -19,9 +19,11 @@ const notificationRoutes = require("./modules/notifications/notifications.routes
 const searchRoutes = require("./modules/search/search.routes");
 const moderationRoutes = require("./modules/moderation/moderation.routes");
 const adminRoutes = require("./modules/admin/admin.routes");
+const { globalApiRateLimiter } = require("./middlewares/rate-limit");
 
 const app = express();
 
+app.set("trust proxy", 1);
 app.use(helmet());
 app.use(
   cors({
@@ -42,6 +44,7 @@ app.get("/health", (req, res) =>
   })
 );
 
+app.use("/api/v1", globalApiRateLimiter);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/users", followRoutes);
