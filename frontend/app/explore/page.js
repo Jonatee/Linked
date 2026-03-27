@@ -4,7 +4,7 @@ import ExploreHeader from "@/components/explore/explore-header";
 
 export default function ExplorePage() {
   return (
-    <AppShell>
+    <AppShell requireAuth={false}>
       <ExploreHeader />
       <FeedList queryKey={["explore"]} endpoint="/posts/explore" emptyMessage="No explore posts yet." />
     </AppShell>

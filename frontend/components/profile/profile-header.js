@@ -3,15 +3,19 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ban, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
 import VerifiedBadge from "@/components/branding/verified-badge";
+import { getLoginRedirectPath } from "@/lib/auth-redirect";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/api";
+import useAuthStore from "@/stores/auth-store";
 
 export default function ProfileHeader({ profile }) {
   const router = useRouter();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
+  const currentUser = useAuthStore((state) => state.currentUser);
   const [showAvatarPreview, setShowAvatarPreview] = useState(false);
 
   useEffect(() => {
@@ -61,6 +65,10 @@ export default function ProfileHeader({ profile }) {
 
   const busy = followMutation.isPending || blockMutation.isPending;
 
+  function requireLogin() {
+    router.push(getLoginRedirectPath(pathname || `/profile/${profile.username}`));
+  }
+
   return (
     <section className="panel overflow-hidden">
       <div className="relative subtle-grid h-44 bg-[linear-gradient(135deg,#0b0b0b_0%,#7a1111_55%,#161616_100%)]">
@@ -89,7 +97,14 @@ export default function ProfileHeader({ profile }) {
               {!profile.viewerState.hasBlockedViewer ? (
                 <Button
                   variant={profile.viewerState.following ? "secondary" : "primary"}
-                  onClick={() => followMutation.mutate()}
+                  onClick={() => {
+                    if (!currentUser) {
+                      requireLogin();
+                      return;
+                    }
+
+                    followMutation.mutate();
+                  }}
                   loading={followMutation.isPending}
                   disabled={busy || profile.viewerState.blockedByViewer}
                 >
@@ -101,7 +116,19 @@ export default function ProfileHeader({ profile }) {
                 </Button>
               )}
 
-              <Button variant="secondary" onClick={() => blockMutation.mutate()} loading={blockMutation.isPending} disabled={busy}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  if (!currentUser) {
+                    requireLogin();
+                    return;
+                  }
+
+                  blockMutation.mutate();
+                }}
+                loading={blockMutation.isPending}
+                disabled={busy}
+              >
                 <Ban size={16} className="mr-2" />
                 {profile.viewerState.blockedByViewer ? "Unblock" : "Block"}
               </Button>

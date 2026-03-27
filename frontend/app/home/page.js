@@ -3,7 +3,7 @@ import FeedList from "@/components/data/feed-list";
 
 export default function HomePage() {
   return (
-    <AppShell>
+    <AppShell requireAuth={false}>
       <section className="panel p-6">
         <div className="editorial-title text-3xl font-black text-white">Home</div>
         <p className="mt-2 max-w-2xl text-sm text-muted">

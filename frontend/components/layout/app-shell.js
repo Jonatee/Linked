@@ -5,9 +5,9 @@ import SessionHydrator from "@/components/auth/session-hydrator";
 import RequireAuth from "@/components/auth/require-auth";
 import ComposerModal from "@/components/feed/composer-modal";
 
-export default function AppShell({ children, rightSidebar = true }) {
-  return (
-    <RequireAuth>
+export default function AppShell({ children, rightSidebar = true, requireAuth = true }) {
+  const shell = (
+    <>
       <div className="screen-shell grid min-h-screen w-full grid-cols-1 gap-0 lg:h-screen lg:grid-cols-[320px_minmax(0,0.9fr)_320px]">
         <SessionHydrator />
         <ComposerModal />
@@ -26,6 +26,12 @@ export default function AppShell({ children, rightSidebar = true }) {
           {rightSidebar ? <RightSidebar /> : null}
         </div>
       </div>
-    </RequireAuth>
+    </>
   );
+
+  if (!requireAuth) {
+    return shell;
+  }
+
+  return <RequireAuth>{shell}</RequireAuth>;
 }

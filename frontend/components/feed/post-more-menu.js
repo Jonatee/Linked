@@ -3,9 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ban, Flag, MoreHorizontal, Trash2 } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import api from "@/lib/api";
+import { getLoginRedirectPath } from "@/lib/auth-redirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import useAuthStore from "@/stores/auth-store";
 
 const REPORT_REASONS = [
   { value: "spam", label: "Spam or scam" },
@@ -34,7 +37,10 @@ function MenuItem({ icon: Icon, label, destructive = false, onClick, disabled = 
 }
 
 export default function PostMoreMenu({ post }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
+  const currentUser = useAuthStore((state) => state.currentUser);
   const [open, setOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reported, setReported] = useState(false);
@@ -129,10 +135,20 @@ export default function PostMoreMenu({ post }) {
   }
 
   function handleReport() {
+    if (!currentUser) {
+      router.push(getLoginRedirectPath(pathname || `/posts/${post.id}`));
+      return;
+    }
+
     setReportOpen(true);
   }
 
   function handleBlock() {
+    if (!currentUser) {
+      router.push(getLoginRedirectPath(pathname || `/posts/${post.id}`));
+      return;
+    }
+
     const label = post.viewerState.blockedByViewer ? "unblock" : "block";
     if (!window.confirm(`Do you want to ${label} @${post.author.username}?`)) {
       return;

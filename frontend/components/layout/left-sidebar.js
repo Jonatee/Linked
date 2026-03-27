@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
 import VerifiedBadge from "@/components/branding/verified-badge";
 import api from "@/lib/api";
+import { getLoginRedirectPath } from "@/lib/auth-redirect";
 import { LINKED_LOGO_URL } from "@/lib/brand";
 import useAuthStore from "@/stores/auth-store";
 import useUiStore from "@/stores/ui-store";
@@ -32,8 +33,9 @@ export default function LeftSidebar() {
   const currentUser = useAuthStore((state) => state.currentUser);
   const clearSession = useAuthStore((state) => state.clearSession);
   const openComposer = useUiStore((state) => state.openComposer);
+  const isSignedIn = Boolean(currentUser);
   const username = currentUser?.username || null;
-  const displayName = currentUser?.usernameDisplay || currentUser?.username || "Current User";
+  const displayName = currentUser?.usernameDisplay || currentUser?.username || "Guest";
   const initials = (displayName || "LI").slice(0, 2).toUpperCase();
   const notificationsQuery = useQuery({
     queryKey: ["notifications"],
@@ -45,14 +47,20 @@ export default function LeftSidebar() {
   });
   const unreadCount = (notificationsQuery.data || []).filter((item) => !item.isRead).length;
 
-  const items = [
-    { href: "/home", label: "Home", icon: Home },
-    { href: "/explore", label: "Explore", icon: Compass },
-    { href: "/notifications", label: "Notifications", icon: null },
-    { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
-    { href: username ? `/profile/${username}` : "/home", label: "Profile", icon: User },
-    { href: "/settings", label: "Settings", icon: Settings }
-  ];
+  const items = isSignedIn
+    ? [
+        { href: "/home", label: "Home", icon: Home },
+        { href: "/explore", label: "Explore", icon: Compass },
+        { href: "/notifications", label: "Notifications", icon: null },
+        { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
+        { href: username ? `/profile/${username}` : "/home", label: "Profile", icon: User },
+        { href: "/settings", label: "Settings", icon: Settings }
+      ]
+    : [
+        { href: "/home", label: "Home", icon: Home },
+        { href: "/explore", label: "Explore", icon: Compass },
+        { href: "/auth/login", label: "Login", icon: User }
+      ];
 
   if (currentUser?.role === "admin") {
     items.push({ href: "/admin", label: "Admin", icon: Shield });
@@ -71,6 +79,15 @@ export default function LeftSidebar() {
       clearSession();
       router.replace("/auth/login");
     }
+  }
+
+  function handlePost() {
+    if (!isSignedIn) {
+      router.push(getLoginRedirectPath("/home"));
+      return;
+    }
+
+    openComposer();
   }
 
   return (
@@ -125,20 +142,22 @@ export default function LeftSidebar() {
       <div className="mt-auto px-3">
         <button
           type="button"
-          onClick={openComposer}
+          onClick={handlePost}
           className="editorial-title hover-lift flex w-full items-center justify-center rounded-md bg-accent px-4 py-3 text-sm font-bold text-white shadow-[0_12px_24px_rgba(224,36,36,0.18)]"
         >
           <PenSquare size={16} className="mr-2" />
           Post
         </button>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="hover-lift mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-white/10 px-4 py-3 text-sm font-medium text-muted transition hover:bg-[#1c1b1b] hover:text-white"
-        >
-          <LogOut size={16} />
-          <span>Logout</span>
-        </button>
+        {isSignedIn ? (
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="hover-lift mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-white/10 px-4 py-3 text-sm font-medium text-muted transition hover:bg-[#1c1b1b] hover:text-white"
+          >
+            <LogOut size={16} />
+            <span>Logout</span>
+          </button>
+        ) : null}
       </div>
     </aside>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname, useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,10 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import useUiStore from "@/stores/ui-store";
 import useAuthStore from "@/stores/auth-store";
+import { getLoginRedirectPath } from "@/lib/auth-redirect";
 import { uploadMediaFile } from "@/lib/media-upload";
 import { cn } from "@/lib/utils";
 
 export default function PostComposer({ variant = "inline" }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const closeComposer = useUiStore((state) => state.closeComposer);
   const currentUser = useAuthStore((state) => state.currentUser);
@@ -47,6 +51,12 @@ export default function PostComposer({ variant = "inline" }) {
   });
 
   async function handleFileSelection(event) {
+    if (!currentUser) {
+      router.push(getLoginRedirectPath(pathname || "/home"));
+      event.target.value = "";
+      return;
+    }
+
     const files = Array.from(event.target.files || []);
     if (!files.length) {
       return;
@@ -100,6 +110,11 @@ export default function PostComposer({ variant = "inline" }) {
   return (
     <form
       onSubmit={form.handleSubmit((values) => {
+        if (!currentUser) {
+          router.push(getLoginRedirectPath(pathname || "/home"));
+          return;
+        }
+
         if (!values.content?.trim() && !mediaItems.length) {
           return;
         }

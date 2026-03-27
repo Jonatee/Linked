@@ -5,13 +5,19 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Heart } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
 import api from "@/lib/api";
+import { getLoginRedirectPath } from "@/lib/auth-redirect";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import useAuthStore from "@/stores/auth-store";
 
 function ReplyComposer({ commentId, postId, onClose }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
+  const currentUser = useAuthStore((state) => state.currentUser);
   const form = useForm({
     defaultValues: {
       content: ""
@@ -33,6 +39,19 @@ function ReplyComposer({ commentId, postId, onClose }) {
     }
   });
 
+  if (!currentUser) {
+    return (
+      <div className="mt-4 rounded-[16px] border border-white/10 bg-[#111] p-4">
+        <p className="text-sm text-muted">Log in to reply to this comment.</p>
+        <div className="mt-3">
+          <Button type="button" onClick={() => router.push(getLoginRedirectPath(pathname || `/posts/${postId}`))}>
+            Log in
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))} className="mt-4 rounded-[16px] border border-white/10 bg-[#111] p-4">
       <Textarea placeholder="Write a reply" {...form.register("content", { required: true })} />
@@ -49,6 +68,9 @@ function ReplyComposer({ commentId, postId, onClose }) {
 }
 
 function CommentNode({ comment, childrenMap, depth = 0 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const currentUser = useAuthStore((state) => state.currentUser);
   const [replyOpen, setReplyOpen] = useState(false);
   const children = childrenMap.get(comment.id) || [];
   const [liked, setLiked] = useState(Boolean(comment.viewerState?.liked));
@@ -68,6 +90,11 @@ function CommentNode({ comment, childrenMap, depth = 0 }) {
   });
 
   function handleLike() {
+    if (!currentUser) {
+      router.push(getLoginRedirectPath(pathname || `/posts/${comment.postId}`));
+      return;
+    }
+
     if (likeMutation.isPending) {
       return;
     }
@@ -112,7 +139,14 @@ function CommentNode({ comment, childrenMap, depth = 0 }) {
             <div className="mt-3 flex items-center gap-4">
               <button
                 type="button"
-                onClick={() => setReplyOpen((value) => !value)}
+                onClick={() => {
+                  if (!currentUser) {
+                    router.push(getLoginRedirectPath(pathname || `/posts/${comment.postId}`));
+                    return;
+                  }
+
+                  setReplyOpen((value) => !value);
+                }}
                 className="text-xs text-muted transition hover:text-white"
               >
                 Reply

@@ -9,3 +9,8 @@ export function getPostAuthRedirectPath(user) {
 
   return "/home";
 }
+
+export function getLoginRedirectPath(pathname = "/home") {
+  const next = pathname || "/home";
+  return `/auth/login?next=${encodeURIComponent(next)}`;
+}

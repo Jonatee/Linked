@@ -8,7 +8,7 @@ const create = asyncHandler(async (req, res) => {
 });
 
 const feed = asyncHandler(async (req, res) => {
-  const result = await postsService.getFeed(req.user.id, req.query);
+  const result = await postsService.getFeed(req.user?.id || null, req.query);
   return sendSuccess(res, { message: "Feed loaded", data: result.items, meta: result.pageInfo });
 });
 

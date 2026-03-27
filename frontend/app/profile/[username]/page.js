@@ -6,7 +6,7 @@ export default async function ProfilePage({ params }) {
   const { username } = await params;
 
   return (
-    <AppShell>
+    <AppShell requireAuth={false}>
       <BackButton />
       <ProfileFeed username={username} />
     </AppShell>

@@ -204,6 +204,22 @@ async function createPost(authorId, payload) {
 
 async function getFeed(userId, query) {
   const limit = Number(query.limit || 20);
+  if (!userId) {
+    const cursor = query.cursor ? new Date(query.cursor) : null;
+    const items = await Post.find({
+      ...(cursor ? { createdAt: { $lt: cursor } } : {}),
+      visibility: "public",
+      deletedAt: null,
+      status: "active"
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit + 1)
+      .lean();
+
+    const enriched = await enrichPosts(items, null);
+    return createCursorPagination({ items: enriched, limit });
+  }
+
   const following = await Follow.find({ followerId: userId, status: { $in: ["active", "accepted"] } }).lean();
   const prioritizedAuthorIds = await blockingService.filterVisibleAuthorIds(userId, [
     userId,

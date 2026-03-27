@@ -6,7 +6,7 @@ import api from "@/lib/api";
 import useAuthStore from "@/stores/auth-store";
 import { canAttemptSessionCheck, recordSessionCheckAttempt, resetSessionCheckAttempts } from "@/lib/session-check";
 
-export default function RequireAuth({ children }) {
+export default function RequireAuth({ children, enabled = true }) {
   const router = useRouter();
   const currentUser = useAuthStore((state) => state.currentUser);
   const setSession = useAuthStore((state) => state.setSession);
@@ -18,6 +18,11 @@ export default function RequireAuth({ children }) {
 
     async function checkSession() {
       const token = window.localStorage.getItem("linked_access_token");
+
+      if (!enabled) {
+        setReady(true);
+        return;
+      }
 
       if (!token) {
         clearSession();
@@ -67,9 +72,9 @@ export default function RequireAuth({ children }) {
     return () => {
       mounted = false;
     };
-  }, [clearSession, currentUser, router, setSession]);
+  }, [clearSession, currentUser, enabled, router, setSession]);
 
-  if (!ready && !currentUser) {
+  if (enabled && !ready && !currentUser) {
     return (
       <main className="subtle-grid flex min-h-screen items-center justify-center">
         <div className="panel p-6 text-sm text-muted">

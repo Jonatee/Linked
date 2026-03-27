@@ -4,8 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bookmark, Heart, MessageCircle, Repeat2, Share } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import api from "@/lib/api";
+import { getLoginRedirectPath } from "@/lib/auth-redirect";
 import { Button } from "@/components/ui/button";
+import useAuthStore from "@/stores/auth-store";
 
 function ActionControl({ icon: Icon, label, count, active, onClick, disabled = false, href }) {
   if (href) {
@@ -36,7 +39,10 @@ function ActionControl({ icon: Icon, label, count, active, onClick, disabled = f
 }
 
 export default function PostActions({ post }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
+  const currentUser = useAuthStore((state) => state.currentUser);
   const targetPostId = post.actionPostId || post.id;
   const canInteract = post.viewerState.canInteract;
   const [liked, setLiked] = useState(Boolean(post.viewerState?.liked));
@@ -109,7 +115,16 @@ export default function PostActions({ post }) {
     [bookmarkMutation.isPending, canInteract, likeMutation.isPending, repostMutation.isPending]
   );
 
+  function requireLogin() {
+    router.push(getLoginRedirectPath(pathname || `/posts/${targetPostId}`));
+  }
+
   function handleLike() {
+    if (!currentUser) {
+      requireLogin();
+      return;
+    }
+
     if (actionsDisabled) return;
     const nextLiked = !liked;
     setLiked(nextLiked);
@@ -129,6 +144,11 @@ export default function PostActions({ post }) {
   }
 
   function handleBookmark() {
+    if (!currentUser) {
+      requireLogin();
+      return;
+    }
+
     if (actionsDisabled) return;
     const nextBookmarked = !bookmarked;
     setBookmarked(nextBookmarked);
@@ -148,6 +168,11 @@ export default function PostActions({ post }) {
   }
 
   function handleRepost() {
+    if (!currentUser) {
+      requireLogin();
+      return;
+    }
+
     if (actionsDisabled || reposted) return;
     setReposted(true);
     setCounts((current) => ({
@@ -193,7 +218,13 @@ export default function PostActions({ post }) {
 
   return (
     <div className="mt-4 flex flex-wrap items-center gap-5">
-      <ActionControl icon={MessageCircle} label="Reply" count={counts.commentCount} active={false} href={`/posts/${targetPostId}`} />
+      <ActionControl
+        icon={MessageCircle}
+        label="Reply"
+        count={counts.commentCount}
+        active={false}
+        href={currentUser ? `/posts/${targetPostId}` : getLoginRedirectPath(pathname || `/posts/${targetPostId}`)}
+      />
       <ActionControl
         icon={Repeat2}
         label="Repost"

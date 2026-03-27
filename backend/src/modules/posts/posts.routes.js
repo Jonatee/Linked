@@ -8,7 +8,7 @@ const validation = require("./posts.validation");
 const router = express.Router();
 
 router.post("/", requireAuth, writeRateLimiter, validate(validation.createPostSchema), controller.create);
-router.get("/feed", requireAuth, controller.feed);
+router.get("/feed", optionalAuth, controller.feed);
 router.get("/explore", optionalAuth, controller.explore);
 router.get("/:postId", optionalAuth, controller.getOne);
 router.patch("/:postId", requireAuth, writeRateLimiter, validate(validation.updatePostSchema), controller.update);

@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
+import { getLoginRedirectPath } from "@/lib/auth-redirect";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import SquareAvatar from "@/components/branding/square-avatar";
@@ -27,6 +29,20 @@ export default function CommentComposer({ postId }) {
       queryClient.invalidateQueries({ queryKey: ["post", postId] });
     }
   });
+
+  if (!currentUser) {
+    return (
+      <div className="panel p-4">
+        <div className="editorial-title mb-2 text-xs font-bold text-muted">Reply</div>
+        <p className="text-sm text-muted">Log in to comment on this post.</p>
+        <div className="mt-4">
+          <Link href={getLoginRedirectPath(`/posts/${postId}`)} className="inline-flex rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white">
+            Log in to reply
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))} className="panel p-4">

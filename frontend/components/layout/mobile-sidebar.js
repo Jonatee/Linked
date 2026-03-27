@@ -8,6 +8,7 @@ import { usePathname, useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
 import VerifiedBadge from "@/components/branding/verified-badge";
 import api from "@/lib/api";
+import { getLoginRedirectPath } from "@/lib/auth-redirect";
 import useAuthStore from "@/stores/auth-store";
 import useUiStore from "@/stores/ui-store";
 
@@ -34,8 +35,9 @@ export default function MobileSidebar() {
   const currentUser = useAuthStore((state) => state.currentUser);
   const clearSession = useAuthStore((state) => state.clearSession);
   const openComposer = useUiStore((state) => state.openComposer);
+  const isSignedIn = Boolean(currentUser);
   const username = currentUser?.username || null;
-  const displayName = currentUser?.usernameDisplay || currentUser?.username || "Current User";
+  const displayName = currentUser?.usernameDisplay || currentUser?.username || "Guest";
   const initials = (displayName || "LI").slice(0, 2).toUpperCase();
 
   const notificationsQuery = useQuery({
@@ -50,14 +52,20 @@ export default function MobileSidebar() {
   const unreadCount = (notificationsQuery.data || []).filter((item) => !item.isRead).length;
 
   const items = useMemo(() => {
-    const nextItems = [
-      { href: "/home", label: "Home", icon: Home },
-      { href: "/explore", label: "Explore", icon: Compass },
-      { href: "/notifications", label: "Notifications", icon: null },
-      { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
-      { href: username ? `/profile/${username}` : "/home", label: "Profile", icon: User },
-      { href: "/settings", label: "Settings", icon: Settings }
-    ];
+    const nextItems = isSignedIn
+      ? [
+          { href: "/home", label: "Home", icon: Home },
+          { href: "/explore", label: "Explore", icon: Compass },
+          { href: "/notifications", label: "Notifications", icon: null },
+          { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
+          { href: username ? `/profile/${username}` : "/home", label: "Profile", icon: User },
+          { href: "/settings", label: "Settings", icon: Settings }
+        ]
+      : [
+          { href: "/home", label: "Home", icon: Home },
+          { href: "/explore", label: "Explore", icon: Compass },
+          { href: "/auth/login", label: "Login", icon: User }
+        ];
 
     if (currentUser?.role === "admin") {
       nextItems.push({ href: "/admin", label: "Admin", icon: Shield });
@@ -68,7 +76,7 @@ export default function MobileSidebar() {
     }
 
     return nextItems;
-  }, [currentUser?.role, username]);
+  }, [currentUser?.role, isSignedIn, username]);
 
   async function handleLogout() {
     try {
@@ -84,6 +92,11 @@ export default function MobileSidebar() {
 
   function handleComposerOpen() {
     setOpen(false);
+    if (!isSignedIn) {
+      router.push(getLoginRedirectPath(pathname || "/home"));
+      return;
+    }
+
     openComposer();
   }
 
@@ -183,14 +196,16 @@ export default function MobileSidebar() {
                 <PenSquare size={16} className="mr-2" />
                 Post
               </button>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="hover-lift flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-medium text-muted transition hover:bg-[#1c1b1b] hover:text-white"
-              >
-                <LogOut size={16} />
-                <span>Logout</span>
-              </button>
+              {isSignedIn ? (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="hover-lift flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-medium text-muted transition hover:bg-[#1c1b1b] hover:text-white"
+                >
+                  <LogOut size={16} />
+                  <span>Logout</span>
+                </button>
+              ) : null}
             </div>
           </aside>
         </div>

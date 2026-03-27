@@ -31,6 +31,8 @@ export default function LoginPage() {
       const response = await api.post("/auth/login", values);
       resetSessionCheckAttempts();
       const accessToken = response.data.data.accessToken;
+      const nextPath =
+        typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("next") : null;
       setSession({
         accessToken,
         user: response.data.data.user
@@ -46,7 +48,7 @@ export default function LoginPage() {
         accessToken,
         user
       });
-      router.push(getPostAuthRedirectPath(user));
+      router.push(nextPath || getPostAuthRedirectPath(user));
     } catch (error) {
       const message = error.response?.data?.message || "Login failed";
       const details = error.response?.data?.error || null;

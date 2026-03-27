@@ -6,7 +6,7 @@ export default async function PostDetailPage({ params }) {
   const { postId } = await params;
 
   return (
-    <AppShell>
+    <AppShell requireAuth={false}>
       <BackButton />
       <PostDetailData postId={postId} />
     </AppShell>
