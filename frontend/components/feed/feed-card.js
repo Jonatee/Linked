@@ -136,7 +136,13 @@ export default function FeedCard({ post, truncateContent = true, navigateOnCard 
                   <RichContent className="text-sm leading-6 text-[#ece7e2]" content={post.originalPost.content} />
                 </div>
               ) : null}
-              <MediaGallery media={post.originalPost.media || []} />
+              <div
+                onClick={(event) => {
+                  event.stopPropagation();
+                }}
+              >
+                <MediaGallery media={post.originalPost.media || []} />
+              </div>
               {post.type === "quote_repost" ? (
                 <div className="editorial-title mt-3 text-[10px] font-bold tracking-[0.2em] text-muted">Quote repost</div>
               ) : null}

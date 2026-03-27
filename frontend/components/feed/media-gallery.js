@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Play, X } from "lucide-react";
 
 function formatDuration(seconds = 0) {
@@ -16,11 +17,19 @@ export default function MediaGallery({ media = [] }) {
   const isMulti = media.length > 1;
   const [activeItem, setActiveItem] = useState(null);
   const [posterFailures, setPosterFailures] = useState({});
+  const [portalReady, setPortalReady] = useState(false);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   useEffect(() => {
     if (!activeItem) {
       return undefined;
     }
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
 
     function handleEscape(event) {
       if (event.key === "Escape") {
@@ -29,11 +38,20 @@ export default function MediaGallery({ media = [] }) {
     }
 
     document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, [activeItem]);
 
   function hasPoster(item) {
     return Boolean(item.posterUrl) && !posterFailures[item.id];
+  }
+
+  function handlePreviewOpen(event, item) {
+    event.preventDefault();
+    event.stopPropagation();
+    setActiveItem(item);
   }
 
   if (!media.length) {
@@ -59,18 +77,19 @@ export default function MediaGallery({ media = [] }) {
             <div
               role="button"
               tabIndex={0}
-              onClick={() => setActiveItem(item)}
+              onClick={(event) => handlePreviewOpen(event, item)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
+                  event.stopPropagation();
                   setActiveItem(item);
                 }
               }}
               className={`relative block w-full overflow-hidden bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_45%),linear-gradient(180deg,#171515_0%,#0d0d0d_100%)] text-left ${
-                isSingle ? "max-h-[260px] sm:max-h-[340px]" : "aspect-[16/10] p-2.5 sm:p-3"
+                isSingle ? "flex h-[360px] items-center justify-center p-2 sm:h-[420px] sm:p-3" : "aspect-[16/10] p-2.5 sm:p-3"
               }`}
             >
-              <div className={isSingle ? "" : "h-full w-full"}>
+              <div className={isSingle ? "flex h-full w-full items-center justify-center" : "h-full w-full"}>
                 {item.type === "video" ? (
                   <div className="relative">
                     {hasPoster(item) ? (
@@ -79,7 +98,7 @@ export default function MediaGallery({ media = [] }) {
                         src={item.posterUrl}
                         alt={item.alt || "Video preview"}
                         className={`w-full rounded-[14px] bg-black ${
-                          isSingle ? "max-h-[260px] object-cover sm:max-h-[340px]" : "h-full object-contain"
+                          isSingle ? "h-full max-h-[344px] w-full object-contain sm:max-h-[396px]" : "h-full object-contain"
                         }`}
                         onError={() =>
                           setPosterFailures((current) => ({
@@ -91,10 +110,22 @@ export default function MediaGallery({ media = [] }) {
                     ) : (
                       <div
                         className={`w-full rounded-[14px] bg-black ${
-                          isSingle ? "h-[180px] sm:h-[220px]" : "h-full min-h-[160px] sm:min-h-[180px]"
+                          isSingle ? "h-full max-h-[344px] sm:max-h-[396px]" : "h-full min-h-[160px] sm:min-h-[180px]"
                         }`}
                       />
                     )}
+                    {isSingle ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={hasPoster(item) ? item.posterUrl : item.url}
+                          alt=""
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-35 blur-2xl"
+                        />
+                        <div className="pointer-events-none absolute inset-0 bg-black/35" />
+                      </>
+                    ) : null}
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                       <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white shadow-[0_12px_30px_rgba(0,0,0,0.35)] sm:h-14 sm:w-14">
@@ -106,14 +137,28 @@ export default function MediaGallery({ media = [] }) {
                     </div>
                   </div>
                 ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={item.url}
-                    alt={item.alt || "Post media"}
-                    className={`w-full rounded-[14px] ${
-                      isSingle ? "max-h-[260px] object-cover sm:max-h-[340px]" : "h-full object-contain"
-                    }`}
-                  />
+                  <div className="relative">
+                    {isSingle ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={item.url}
+                          alt=""
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-35 blur-2xl"
+                        />
+                        <div className="pointer-events-none absolute inset-0 bg-black/35" />
+                      </>
+                    ) : null}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.url}
+                      alt={item.alt || "Post media"}
+                      className={`relative z-10 w-full rounded-[14px] ${
+                        isSingle ? "h-full max-h-[344px] w-full object-contain sm:max-h-[396px]" : "h-full object-contain"
+                      }`}
+                    />
+                  </div>
                 )}
               </div>
               {isMulti ? (
@@ -126,23 +171,42 @@ export default function MediaGallery({ media = [] }) {
         ))}
       </div>
 
-      {activeItem ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 p-2 sm:p-4 backdrop-blur-md">
+      {activeItem && portalReady
+        ? createPortal(
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center overflow-hidden bg-black/88 p-3 backdrop-blur-md sm:p-5"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setActiveItem(null);
+            }
+          }}
+        >
+          {activeItem.type !== "video" ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={activeItem.url}
+                alt=""
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-30 blur-3xl"
+              />
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.22)_45%,rgba(0,0,0,0.78)_100%)]" />
+            </>
+          ) : (
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05)_0%,rgba(0,0,0,0.28)_45%,rgba(0,0,0,0.85)_100%)] backdrop-blur-md" />
+          )}
           <button
             type="button"
-            className="absolute inset-0 cursor-default"
-            aria-label="Close media preview backdrop"
             onClick={() => setActiveItem(null)}
-          />
-          <button
-            type="button"
-            onClick={() => setActiveItem(null)}
-            className="absolute right-3 top-3 z-[121] flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#141414] text-white transition hover:bg-[#1f1f1f] sm:right-4 sm:top-4 sm:h-11 sm:w-11"
+            className="absolute right-4 top-4 z-[123] flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#141414]/92 text-white shadow-[0_12px_30px_rgba(0,0,0,0.35)] transition hover:bg-[#1f1f1f] sm:right-5 sm:top-5"
             aria-label="Close media preview"
           >
-          <X size={18} />
+            <X size={18} />
           </button>
-          <div className="relative z-[121] max-h-[92vh] w-full max-w-[96vw] overflow-hidden rounded-[20px] border border-white/10 bg-[#0b0b0b] p-2 sm:max-h-[90vh] sm:max-w-[92vw] sm:rounded-[24px] sm:p-3 shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
+          <div
+            className="relative z-[122] max-h-[88vh] w-full max-w-[94vw] overflow-hidden rounded-[20px] border border-white/10 bg-[#0b0b0b]/92 p-2 shadow-[0_30px_80px_rgba(0,0,0,0.55)] sm:max-h-[88vh] sm:max-w-[90vw] sm:rounded-[24px] sm:p-3"
+            onClick={(event) => event.stopPropagation()}
+          >
             {activeItem.type === "video" ? (
               <video
                 src={activeItem.playbackUrl || activeItem.url}
@@ -152,19 +216,22 @@ export default function MediaGallery({ media = [] }) {
                 poster={activeItem.posterUrl || undefined}
                 controlsList="nodownload noplaybackrate"
                 disablePictureInPicture
-                className="max-h-[calc(92vh-16px)] w-full rounded-[16px] bg-black sm:max-h-[calc(90vh-24px)] sm:max-w-[92vw] sm:rounded-[18px]"
+                className="max-h-[calc(88vh-16px)] w-full rounded-[16px] bg-black sm:max-h-[calc(88vh-24px)] sm:max-w-[90vw] sm:rounded-[18px]"
               />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={activeItem.url}
                 alt={activeItem.alt || "Expanded post media"}
-                className="max-h-[calc(92vh-16px)] w-full rounded-[16px] object-contain sm:max-h-[calc(90vh-24px)] sm:max-w-[calc(92vw-24px)] sm:rounded-[18px]"
+                className="max-h-[calc(88vh-16px)] w-full rounded-[16px] object-contain sm:max-h-[calc(88vh-24px)] sm:max-w-[calc(90vw-24px)] sm:rounded-[18px]"
               />
             )}
           </div>
         </div>
-      ) : null}
+        ,
+        document.body
+      )
+        : null}
     </>
   );
 }
