@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import api from "@/lib/api";
 import useAuthStore from "@/stores/auth-store";
@@ -14,6 +15,7 @@ import { getPostAuthRedirectPath } from "@/lib/auth-redirect";
 export default function VerifyEmailForm({ initialEmail = "" }) {
   const router = useRouter();
   const setSession = useAuthStore((state) => state.setSession);
+  const [submitError, setSubmitError] = useState("");
   const form = useForm({
     defaultValues: {
       email: initialEmail,
@@ -22,25 +24,31 @@ export default function VerifyEmailForm({ initialEmail = "" }) {
   });
 
   async function onSubmit(values) {
-    const response = await api.post("/auth/verify-email", values);
-    resetSessionCheckAttempts();
-    const accessToken = response.data.data.accessToken;
-    setSession({
-      accessToken,
-      user: response.data.data.user
-    });
+    setSubmitError("");
 
-    const meResponse = await api.get("/auth/me");
-    const user = {
-      ...meResponse.data.data.user,
-      profile: meResponse.data.data.profile || null
-    };
+    try {
+      const response = await api.post("/auth/verify-email", values);
+      resetSessionCheckAttempts();
+      const accessToken = response.data.data.accessToken;
+      setSession({
+        accessToken,
+        user: response.data.data.user
+      });
 
-    setSession({
-      accessToken,
-      user
-    });
-    router.push(getPostAuthRedirectPath(user));
+      const meResponse = await api.get("/auth/me");
+      const user = {
+        ...meResponse.data.data.user,
+        profile: meResponse.data.data.profile || null
+      };
+
+      setSession({
+        accessToken,
+        user
+      });
+      router.push(getPostAuthRedirectPath(user));
+    } catch (error) {
+      setSubmitError(error?.response?.data?.message || "Verification failed. Please try again.");
+    }
   }
 
   return (
@@ -56,6 +64,7 @@ export default function VerifyEmailForm({ initialEmail = "" }) {
           <div className="mt-6 grid gap-4">
             <Input type="email" placeholder="Email" {...form.register("email", { required: true })} />
             <Input placeholder="6-digit code" maxLength={6} {...form.register("code", { required: true })} />
+            {submitError ? <p className="text-sm text-accent">{submitError}</p> : null}
             <Button type="submit" loading={form.formState.isSubmitting}>
               Verify email
             </Button>

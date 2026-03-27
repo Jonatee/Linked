@@ -36,7 +36,8 @@ export function formatPost(post) {
       name: post.author?.profile?.displayName || post.author?.usernameDisplay || "Unknown",
       username: post.author?.username || "unknown",
       initials: (post.author?.usernameDisplay || post.author?.username || "LI").slice(0, 2).toUpperCase(),
-      avatarUrl: post.author?.profile?.avatarMedia?.secureUrl || ""
+      avatarUrl: post.author?.profile?.avatarMedia?.secureUrl || "",
+      isVerified: Boolean(post.author?.isVerified)
     },
     content: post.content || post.quoteText || "",
     createdAtLabel: post.createdAt ? new Date(post.createdAt).toLocaleString() : "now",
@@ -59,7 +60,8 @@ export function formatPost(post) {
             name: original.author?.profile?.displayName || original.author?.usernameDisplay || "Unknown",
             username: original.author?.username || "unknown",
             initials: (original.author?.usernameDisplay || original.author?.username || "LI").slice(0, 2).toUpperCase(),
-            avatarUrl: original.author?.profile?.avatarMedia?.secureUrl || ""
+            avatarUrl: original.author?.profile?.avatarMedia?.secureUrl || "",
+            isVerified: Boolean(original.author?.isVerified)
           },
           content: original.content || original.quoteText || "",
           media: (original.media || []).map((item) => ({

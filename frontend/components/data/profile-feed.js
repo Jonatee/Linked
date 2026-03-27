@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import api from "@/lib/api";
+import VerifiedBadge from "@/components/branding/verified-badge";
 import ProfileHeader from "@/components/profile/profile-header";
 import FeedCard from "@/components/feed/feed-card";
 import { formatPost } from "@/lib/formatters";
@@ -44,9 +45,12 @@ function CommentCard({ comment }) {
     <article className="rounded-[20px] border border-white/10 bg-[#141212] p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <Link href={`/profile/${comment.author?.username || "unknown"}`} className="text-sm font-semibold text-white transition hover:text-accent">
-            {comment.author?.profile?.displayName || comment.author?.usernameDisplay || "Unknown"}
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href={`/profile/${comment.author?.username || "unknown"}`} className="text-sm font-semibold text-white transition hover:text-accent">
+              {comment.author?.profile?.displayName || comment.author?.usernameDisplay || "Unknown"}
+            </Link>
+            {comment.author?.isVerified ? <VerifiedBadge compact /> : null}
+          </div>
           <div className="mt-1 text-xs text-muted">
             @{comment.author?.username || "unknown"} - {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : "now"}
           </div>
@@ -164,6 +168,7 @@ export default function ProfileFeed({ username }) {
           initials: profileData.user.user.username.slice(0, 2).toUpperCase(),
           avatarUrl: profileData.user.profile?.avatarMedia?.secureUrl || "",
           bannerUrl: profileData.user.profile?.bannerMedia?.secureUrl || "",
+          isVerified: Boolean(profileData.user.user.isVerified),
           followerCount: profileData.user.user.stats?.followerCount || 0,
           followingCount: profileData.user.user.stats?.followingCount || 0,
           viewerState: profileData.user.viewerState || {

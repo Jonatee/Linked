@@ -34,7 +34,7 @@ export default function PostDetailData({ postId }) {
 
   return (
     <>
-      <FeedCard post={formatPost(data.post)} />
+      <FeedCard post={formatPost(data.post)} truncateContent={false} navigateOnCard={false} />
       <CommentComposer postId={postId} />
       <CommentThread
         comments={(data.comments || []).map((comment) => ({
@@ -59,7 +59,14 @@ export default function PostDetailData({ postId }) {
               .slice(0, 2)
               .toUpperCase()
           },
-          content: comment.content
+          content: comment.content,
+          stats: {
+            likeCount: comment.stats?.likeCount || 0,
+            replyCount: comment.stats?.replyCount || 0
+          },
+          viewerState: {
+            liked: Boolean(comment.viewerState?.liked)
+          }
         }))}
       />
     </>

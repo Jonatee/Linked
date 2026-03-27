@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import SquareAvatar from "@/components/branding/square-avatar";
+import VerifiedBadge from "@/components/branding/verified-badge";
 import FeedCard from "@/components/feed/feed-card";
 import { formatPost } from "@/lib/formatters";
 import { SearchSkeleton } from "@/components/loading/screen-skeletons";
@@ -61,7 +62,10 @@ export default function SearchResults({ query }) {
               alt={user.profile?.displayName || user.usernameDisplay || user.username}
             />
             <div>
-              <div className="font-semibold">{user.profile?.displayName || user.usernameDisplay}</div>
+              <div className="flex items-center gap-2">
+                <div className="font-semibold">{user.profile?.displayName || user.usernameDisplay}</div>
+                {user.isVerified ? <VerifiedBadge compact /> : null}
+              </div>
               <div className="text-sm text-muted">@{user.username}</div>
             </div>
           </div>

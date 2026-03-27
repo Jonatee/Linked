@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ban, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
+import VerifiedBadge from "@/components/branding/verified-badge";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/api";
 
@@ -108,7 +109,10 @@ export default function ProfileHeader({ profile }) {
           )}
         </div>
         <div className="mt-4">
-          <h1 className="editorial-title text-3xl font-black text-white">{profile.displayName}</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="editorial-title text-3xl font-black text-white">{profile.displayName}</h1>
+            {profile.isVerified ? <VerifiedBadge /> : null}
+          </div>
           <p className="mt-1 text-sm text-muted">@{profile.username}</p>
           <div className="mt-4 flex items-center gap-6 text-sm text-[#ece7e2]">
             <div>

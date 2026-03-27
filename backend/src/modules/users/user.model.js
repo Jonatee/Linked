@@ -19,6 +19,7 @@ const userSchema = createBaseSchema({
     index: true
   },
   isEmailVerified: { type: Boolean, default: false },
+  isVerified: { type: Boolean, default: false, index: true },
   authProviders: { type: [String], default: ["local"] },
   lastLoginAt: { type: Date, default: null },
   profileId: { type: String, default: null },
@@ -38,4 +39,3 @@ const userSchema = createBaseSchema({
 });
 
 module.exports = mongoose.models.User || mongoose.model("User", userSchema);
-

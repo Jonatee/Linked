@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 function FeedCardSkeleton() {
   return (
-    <div className="border-b border-white/10 p-5">
+    <div className="motion-rise border-b border-white/10 p-5">
       <div className="flex gap-4">
         <Skeleton className="h-14 w-14 rounded-[14px]" />
         <div className="flex-1 space-y-3">
@@ -29,12 +29,12 @@ export function FeedSkeleton({ withHeader = false, count = 3 }) {
   return (
     <div className="space-y-2">
       {withHeader ? (
-        <section className="panel p-6">
+        <section className="panel panel-reveal p-6">
           <Skeleton className="h-8 w-32" />
           <Skeleton className="mt-3 h-4 w-72" />
         </section>
       ) : null}
-      <div className="overflow-hidden rounded-[18px] border border-white/10 bg-[#151313]">
+      <div className="panel-reveal overflow-hidden rounded-[18px] border border-white/10 bg-[#151313]">
         {Array.from({ length: count }).map((_, index) => (
           <FeedCardSkeleton key={index} />
         ))}
@@ -46,7 +46,7 @@ export function FeedSkeleton({ withHeader = false, count = 3 }) {
 export function ProfileSkeleton() {
   return (
     <div className="space-y-4">
-      <section className="panel overflow-hidden">
+      <section className="panel panel-reveal overflow-hidden">
         <Skeleton className="h-44 w-full rounded-none" />
         <div className="p-6">
           <div className="-mt-16 flex items-end justify-between">
@@ -70,7 +70,7 @@ export function PostDetailSkeleton() {
       <FeedSkeleton count={1} />
       <div className="space-y-4">
         {Array.from({ length: 3 }).map((_, index) => (
-          <section key={index} className="panel p-4">
+          <section key={index} className="panel panel-reveal p-4">
             <div className="flex gap-3">
               <Skeleton className="h-10 w-10 rounded-[12px]" />
               <div className="flex-1 space-y-3">
@@ -90,7 +90,7 @@ export function NotificationsSkeleton() {
   return (
     <div className="space-y-4">
       {Array.from({ length: 5 }).map((_, index) => (
-        <section key={index} className="panel p-4">
+        <section key={index} className="panel panel-reveal p-4">
           <div className="flex gap-3">
             <Skeleton className="h-10 w-10 rounded-[12px]" />
             <div className="flex-1 space-y-3">
@@ -108,7 +108,7 @@ export function SearchSkeleton() {
   return (
     <div className="space-y-4">
       {Array.from({ length: 4 }).map((_, index) => (
-        <section key={index} className="panel p-5">
+        <section key={index} className="panel panel-reveal p-5">
           <div className="flex items-center gap-4">
             <Skeleton className="h-14 w-14 rounded-[14px]" />
             <div className="space-y-3">
@@ -124,7 +124,7 @@ export function SearchSkeleton() {
 
 export function SettingsSkeleton() {
   return (
-    <section className="panel p-6">
+    <section className="panel panel-reveal p-6">
       <Skeleton className="h-8 w-36" />
       <Skeleton className="mt-3 h-4 w-80" />
       <div className="mt-8 grid gap-8">
@@ -150,13 +150,13 @@ export function AdminSkeleton() {
       </section>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
-          <section key={index} className="panel p-5">
+          <section key={index} className="panel panel-reveal p-5">
             <Skeleton className="h-3 w-20" />
             <Skeleton className="mt-4 h-8 w-24" />
           </section>
         ))}
       </div>
-      <section className="panel p-5">
+      <section className="panel panel-reveal p-5">
         <Skeleton className="mb-4 h-6 w-32" />
         {Array.from({ length: 5 }).map((_, index) => (
           <Skeleton key={index} className="mb-3 h-10 w-full last:mb-0" />
@@ -165,4 +165,3 @@ export function AdminSkeleton() {
     </div>
   );
 }
-

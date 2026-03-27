@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Bell, Bookmark, Compass, Home, LogOut, Menu, PenSquare, Settings, Shield, User, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
+import VerifiedBadge from "@/components/branding/verified-badge";
 import api from "@/lib/api";
 import useAuthStore from "@/stores/auth-store";
 import useUiStore from "@/stores/ui-store";
@@ -16,7 +17,7 @@ function NotificationMark({ unreadCount, compact = false }) {
 
   return (
     <div className={`relative flex ${sizeClass} items-center justify-center`}>
-      <div className="absolute inset-0 rounded-xl bg-[#201111]" />
+      <div className="notification-pulse absolute inset-0 rounded-xl bg-[#201111]" />
       <div className="absolute bottom-[-3px] right-[-3px] h-4 w-4 rounded-[4px] bg-black" />
       <div className="absolute bottom-[-1px] right-[-1px] h-4 w-4 rounded-[4px] bg-accent/85" />
       <span className="editorial-title relative z-10 text-[11px] font-black tracking-[0.08em] text-white">
@@ -116,10 +117,10 @@ export default function MobileSidebar() {
             type="button"
             aria-label="Close navigation backdrop"
             onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-black/55 backdrop-blur-sm"
+            className="overlay-fade absolute inset-0 bg-black/55 backdrop-blur-sm"
           />
 
-          <aside className="relative flex h-full w-[86%] max-w-[320px] flex-col border-r border-white/10 bg-[#131313] p-5 shadow-2xl">
+          <aside className="panel-reveal relative flex h-full w-[86%] max-w-[320px] flex-col border-r border-white/10 bg-[#131313] p-5 shadow-2xl">
             <div className="mb-6 flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 <SquareAvatar
@@ -129,7 +130,10 @@ export default function MobileSidebar() {
                   alt={displayName}
                 />
                 <div className="min-w-0">
-                  <div className="editorial-title truncate text-sm font-bold text-white">{displayName}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="editorial-title truncate text-sm font-bold text-white">{displayName}</div>
+                    {currentUser?.isVerified ? <VerifiedBadge compact className="shrink-0" /> : null}
+                  </div>
                   <div className="truncate text-xs text-muted">@{username || "linked_user"}</div>
                 </div>
               </div>
@@ -155,7 +159,7 @@ export default function MobileSidebar() {
                     key={item.href + item.label}
                     href={item.href}
                     onClick={() => setOpen(false)}
-                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition ${
+                    className={`hover-lift flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition ${
                       isActive ? "bg-[#1f1a1a] text-white" : "text-muted hover:bg-[#1c1b1b] hover:text-white"
                     }`}
                   >
@@ -174,7 +178,7 @@ export default function MobileSidebar() {
               <button
                 type="button"
                 onClick={handleComposerOpen}
-                className="editorial-title flex w-full items-center justify-center rounded-xl bg-accent px-4 py-3 text-sm font-bold text-white shadow-[0_12px_24px_rgba(224,36,36,0.18)]"
+                className="editorial-title hover-lift flex w-full items-center justify-center rounded-xl bg-accent px-4 py-3 text-sm font-bold text-white shadow-[0_12px_24px_rgba(224,36,36,0.18)]"
               >
                 <PenSquare size={16} className="mr-2" />
                 Post
@@ -182,7 +186,7 @@ export default function MobileSidebar() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-medium text-muted transition hover:bg-[#1c1b1b] hover:text-white"
+                className="hover-lift flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-medium text-muted transition hover:bg-[#1c1b1b] hover:text-white"
               >
                 <LogOut size={16} />
                 <span>Logout</span>

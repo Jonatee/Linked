@@ -11,9 +11,11 @@ function ActionControl({ icon: Icon, label, count, active, onClick, disabled = f
   if (href) {
     return (
       <Link href={href} className="inline-flex items-center gap-2 text-xs text-muted transition hover:text-white">
-        <Icon size={16} fill={active ? "currentColor" : "none"} />
-        <span>{label}</span>
-        {typeof count === "number" ? <span>{count}</span> : null}
+        <span className="action-pop inline-flex items-center gap-2">
+          <Icon size={16} fill={active ? "currentColor" : "none"} />
+          <span>{label}</span>
+          {typeof count === "number" ? <span>{count}</span> : null}
+        </span>
       </Link>
     );
   }
@@ -24,7 +26,7 @@ function ActionControl({ icon: Icon, label, count, active, onClick, disabled = f
       variant="ghost"
       onClick={onClick}
       disabled={disabled}
-      className={`gap-2 px-0 py-0 text-xs ${active ? "text-accent" : "text-muted"}`}
+      className={`action-pop gap-2 px-0 py-0 text-xs ${active ? "text-accent" : "text-muted"}`}
     >
       <Icon size={16} fill={active ? "currentColor" : "none"} />
       <span>{label}</span>
@@ -46,6 +48,7 @@ export default function PostActions({ post }) {
     repostCount: post.stats.repostCount || 0,
     commentCount: post.stats.commentCount || 0
   });
+  const [shareLabel, setShareLabel] = useState("Share");
 
   useEffect(() => {
     setLiked(Boolean(post.viewerState?.liked));
@@ -57,6 +60,7 @@ export default function PostActions({ post }) {
       repostCount: post.stats.repostCount || 0,
       commentCount: post.stats.commentCount || 0
     });
+    setShareLabel("Share");
   }, [post]);
 
   const invalidateAll = () => {
@@ -161,6 +165,32 @@ export default function PostActions({ post }) {
     });
   }
 
+  async function handleShare() {
+    const origin =
+      (typeof window !== "undefined" && window.location?.origin) ||
+      process.env.NEXT_PUBLIC_APP_ORIGIN ||
+      "http://localhost:3000";
+    const url = `${origin}/posts/${targetPostId}`;
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share({
+          title: "LInked post",
+          text: post.content || post.quoteText || "Check out this post on LInked",
+          url
+        });
+        setShareLabel("Shared");
+      } else if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        setShareLabel("Copied");
+      }
+    } catch {
+      setShareLabel("Share");
+    } finally {
+      window.setTimeout(() => setShareLabel("Share"), 1800);
+    }
+  }
+
   return (
     <div className="mt-4 flex flex-wrap items-center gap-5">
       <ActionControl icon={MessageCircle} label="Reply" count={counts.commentCount} active={false} href={`/posts/${targetPostId}`} />
@@ -188,7 +218,7 @@ export default function PostActions({ post }) {
         onClick={handleBookmark}
         disabled={actionsDisabled}
       />
-      <ActionControl icon={Share} label="Share" active={false} />
+      <ActionControl icon={Share} label={shareLabel} active={false} onClick={handleShare} />
     </div>
   );
 }

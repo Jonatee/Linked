@@ -1,15 +1,18 @@
 "use client";
 
+import Link from "next/link";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ClipboardList, FileText, MessageSquare, ShieldCheck, Users } from "lucide-react";
 import api from "@/lib/api";
 import AdminTable from "@/components/admin/admin-table";
 import { AdminSkeleton } from "@/components/loading/screen-skeletons";
 import useAuthStore from "@/stores/auth-store";
+import { Button } from "@/components/ui/button";
 
 function StatCard({ label, value, icon: Icon }) {
   return (
-    <section className="panel p-5">
+    <section className="panel panel-reveal hover-lift p-5">
       <div className="flex items-center justify-between gap-3">
         <div className="editorial-title text-[10px] font-bold text-muted">{label}</div>
         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent/12 text-accent">
@@ -32,7 +35,7 @@ function PulseChart({ stats }) {
   const maxValue = Math.max(...points.map((point) => point.value), 1);
 
   return (
-    <section className="panel overflow-hidden p-4 sm:p-6">
+    <section className="panel panel-reveal overflow-hidden p-4 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="editorial-title text-xs font-bold text-muted">Platform Pulse</div>
@@ -85,21 +88,39 @@ function PulseChart({ stats }) {
 
 export default function AdminOverview() {
   const currentUser = useAuthStore((state) => state.currentUser);
-  const { data, isLoading, error } = useQuery({
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+
+  const { data: overviewData, isLoading, error } = useQuery({
     queryKey: ["admin-overview"],
     queryFn: async () => {
-      const [statsResponse, usersResponse, logsResponse, reportsResponse] = await Promise.all([
+      const [statsResponse, logsResponse, reportsResponse] = await Promise.all([
         api.get("/admin/stats"),
-        api.get("/admin/users"),
         api.get("/admin/audit-logs"),
         api.get("/moderation/reports")
       ]);
 
       return {
         stats: statsResponse.data.data,
-        users: usersResponse.data.data,
         logs: logsResponse.data.data,
         reports: reportsResponse.data.data
+      };
+    },
+    enabled: currentUser?.role === "admin"
+  });
+  const { data: usersData, isLoading: usersLoading } = useQuery({
+    queryKey: ["admin-users", page, pageSize],
+    queryFn: async () => {
+      const response = await api.get("/admin/users", {
+        params: {
+          page,
+          limit: pageSize
+        }
+      });
+
+      return {
+        items: response.data.data,
+        meta: response.data.meta
       };
     },
     enabled: currentUser?.role === "admin"
@@ -117,13 +138,51 @@ export default function AdminOverview() {
     return <AdminSkeleton />;
   }
 
-  if (error || !data) {
+  if (error || !overviewData) {
     return <div className="panel p-6 text-sm text-accent">Failed to load admin overview.</div>;
   }
 
+  const usersMeta = usersData?.meta || {};
+  const totalPages = Math.max(Math.ceil((usersMeta.total || 0) / (usersMeta.limit || pageSize)), 1);
+  const userRows = (usersData?.items || []).map((user) => [user.username, user.role, user.status, user.email]);
+  const reportRows = (overviewData.reports || []).slice(0, 8).map((report) => {
+    const postHref =
+      report.targetType === "post"
+        ? `/posts/${report.targetId}`
+        : report.targetType === "comment" && report.target?.postId
+          ? `/posts/${report.target.postId}`
+          : null;
+    const userHref = report.targetType === "user" && report.target?.username ? `/profile/${report.target.username}` : null;
+    const targetLabel =
+      report.targetType === "post"
+        ? report.target?.content || "Reported post"
+        : report.targetType === "comment"
+          ? report.target?.content || "Reported comment"
+          : report.target?.usernameDisplay || report.target?.username || "Reported user";
+
+    return [
+      report.reasonCode || "general",
+      <div key={`${report.id}-target`} className="space-y-1">
+        <div className="text-sm text-white">{targetLabel}</div>
+        {postHref ? (
+          <Link href={postHref} className="text-xs text-accent hover:text-white">
+            Open post
+          </Link>
+        ) : null}
+        {userHref ? (
+          <Link href={userHref} className="text-xs text-accent hover:text-white">
+            Open profile
+          </Link>
+        ) : null}
+      </div>,
+      report.description || report.target?.status || "No extra details",
+      report.status
+    ];
+  });
+
   return (
     <div className="space-y-8">
-      <section className="panel p-6">
+      <section className="panel panel-reveal p-6">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent">
             <ShieldCheck size={22} />
@@ -134,32 +193,50 @@ export default function AdminOverview() {
       </section>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Users" value={data.stats.users} icon={Users} />
-        <StatCard label="Posts" value={data.stats.posts} icon={FileText} />
-        <StatCard label="Comments" value={data.stats.comments} icon={MessageSquare} />
-        <StatCard label="Audit Logs" value={data.stats.auditLogs} icon={ClipboardList} />
+        <StatCard label="Users" value={overviewData.stats.users} icon={Users} />
+        <StatCard label="Posts" value={overviewData.stats.posts} icon={FileText} />
+        <StatCard label="Comments" value={overviewData.stats.comments} icon={MessageSquare} />
+        <StatCard label="Audit Logs" value={overviewData.stats.auditLogs} icon={ClipboardList} />
       </div>
 
-      <PulseChart stats={data.stats} />
+      <PulseChart stats={overviewData.stats} />
 
-      <AdminTable
-        title="Users"
-        columns={["Username", "Role", "Status", "Email"]}
-        rows={(data.users || []).map((user) => [user.username, user.role, user.status, user.email])}
-      />
+      <section className="space-y-4">
+        <AdminTable
+          title={`Users${usersLoading ? " (Loading...)" : ` (${usersMeta.total || 0})`}`}
+          columns={["Username", "Role", "Status", "Email"]}
+          rows={userRows}
+        />
+        <div className="flex items-center justify-between gap-4 px-1">
+          <div className="text-xs uppercase tracking-[0.18em] text-muted">
+            Page {page} of {totalPages}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="secondary" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>
+              Previous
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={page >= totalPages}
+              onClick={() => setPage((value) => value + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      </section>
 
       <div className="grid gap-8 xl:grid-cols-2">
         <AdminTable
           title="Recent Reports"
-          columns={["Reason", "Target", "Status"]}
-          rows={(data.reports || [])
-            .slice(0, 8)
-            .map((report) => [report.reasonCode || "general", `${report.targetType}:${report.targetId}`, report.status])}
+          columns={["Reason", "Target", "Details", "Status"]}
+          rows={reportRows}
         />
         <AdminTable
           title="Audit Logs"
           columns={["Actor", "Action", "Target"]}
-          rows={(data.logs || [])
+          rows={(overviewData.logs || [])
             .slice(0, 8)
             .map((log) => [log.actorId, log.actionType, `${log.targetType}:${log.targetId}`])}
         />

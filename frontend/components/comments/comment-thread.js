@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Heart } from "lucide-react";
 import SquareAvatar from "@/components/branding/square-avatar";
 import api from "@/lib/api";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,6 +51,38 @@ function ReplyComposer({ commentId, postId, onClose }) {
 function CommentNode({ comment, childrenMap, depth = 0 }) {
   const [replyOpen, setReplyOpen] = useState(false);
   const children = childrenMap.get(comment.id) || [];
+  const [liked, setLiked] = useState(Boolean(comment.viewerState?.liked));
+  const [likeCount, setLikeCount] = useState(comment.stats?.likeCount || 0);
+  const queryClient = useQueryClient();
+  const likeMutation = useMutation({
+    mutationFn: async (nextLiked) => {
+      if (nextLiked) {
+        await api.post(`/comments/${comment.id}/react`);
+      } else {
+        await api.delete(`/comments/${comment.id}/react`);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["post", comment.postId] });
+    }
+  });
+
+  function handleLike() {
+    if (likeMutation.isPending) {
+      return;
+    }
+
+    const nextLiked = !liked;
+    setLiked(nextLiked);
+    setLikeCount((current) => current + (nextLiked ? 1 : -1));
+
+    likeMutation.mutate(nextLiked, {
+      onError: () => {
+        setLiked(!nextLiked);
+        setLikeCount((current) => current + (nextLiked ? -1 : 1));
+      }
+    });
+  }
 
   return (
     <div className={depth > 0 ? "ml-6 border-l border-white/10 pl-4" : ""}>
@@ -83,6 +116,15 @@ function CommentNode({ comment, childrenMap, depth = 0 }) {
                 className="text-xs text-muted transition hover:text-white"
               >
                 Reply
+              </button>
+              <button
+                type="button"
+                onClick={handleLike}
+                className={`inline-flex items-center gap-2 text-xs transition ${liked ? "text-accent" : "text-muted hover:text-white"}`}
+              >
+                <Heart size={14} fill={liked ? "currentColor" : "none"} />
+                <span>Like</span>
+                <span>{likeCount}</span>
               </button>
             </div>
             {replyOpen ? (

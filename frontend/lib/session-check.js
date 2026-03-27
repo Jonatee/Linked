@@ -1,5 +1,5 @@
 const SESSION_CHECK_KEY = "linked_session_check_attempts";
-const MAX_SESSION_CHECKS = 2;
+const MAX_SESSION_CHECKS = 1;
 
 function readCount() {
   if (typeof window === "undefined") {

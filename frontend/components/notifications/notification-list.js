@@ -75,7 +75,7 @@ export default function NotificationList({ items = [] }) {
               handleCardClick(item);
             }
           }}
-          className={`panel w-full p-4 text-left transition hover:bg-[#1a1818] ${!item.isRead ? "border border-accent/35" : ""}`}
+          className={`panel panel-reveal hover-lift w-full p-4 text-left transition hover:bg-[#1a1818] ${!item.isRead ? "border border-accent/35" : ""}`}
         >
           <div className="flex items-start gap-3">
             <SquareAvatar

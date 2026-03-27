@@ -24,6 +24,12 @@ const { globalApiRateLimiter } = require("./middlewares/rate-limit");
 const app = express();
 
 app.set("trust proxy", 1);
+app.get("/health", (req, res) =>
+  sendSuccess(res, {
+    message: `${env.appName} API is healthy`,
+    data: { uptime: process.uptime() }
+  })
+);
 app.use(helmet());
 app.use(
   cors({
@@ -36,13 +42,6 @@ app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(requestLogger);
-
-app.get("/health", (req, res) =>
-  sendSuccess(res, {
-    message: `${env.appName} API is healthy`,
-    data: { uptime: process.uptime() }
-  })
-);
 
 app.use("/api/v1", globalApiRateLimiter);
 app.use("/api/v1/auth", authRoutes);

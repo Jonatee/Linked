@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Bell, Bookmark, Compass, Home, LogOut, PenSquare, Settings, Shield, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
+import VerifiedBadge from "@/components/branding/verified-badge";
 import api from "@/lib/api";
 import { LINKED_LOGO_URL } from "@/lib/brand";
 import useAuthStore from "@/stores/auth-store";
@@ -16,7 +17,7 @@ function NotificationMark({ unreadCount }) {
 
   return (
     <div className="relative flex h-9 w-9 items-center justify-center">
-      <div className="absolute inset-0 rounded-xl bg-[#201111]" />
+      <div className="notification-pulse absolute inset-0 rounded-xl bg-[#201111]" />
       <div className="absolute bottom-[-3px] right-[-3px] h-4 w-4 rounded-[4px] bg-black" />
       <div className="absolute bottom-[-1px] right-[-1px] h-4 w-4 rounded-[4px] bg-accent/85" />
       <span className="editorial-title relative z-10 text-[11px] font-black tracking-[0.08em] text-white">
@@ -93,7 +94,10 @@ export default function LeftSidebar() {
             alt={displayName}
           />
           <div>
-            <div className="editorial-title text-sm font-bold text-white">{displayName}</div>
+            <div className="flex items-center gap-2">
+              <div className="editorial-title text-sm font-bold text-white">{displayName}</div>
+              {currentUser?.isVerified ? <VerifiedBadge compact /> : null}
+            </div>
             <div className="text-xs text-muted">@{username || "linked_user"}</div>
           </div>
         </div>
@@ -106,7 +110,7 @@ export default function LeftSidebar() {
             <Link
               key={item.href + item.label}
               href={item.href}
-              className="flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium text-muted transition hover:bg-[#1c1b1b] hover:text-white"
+              className="hover-lift flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium text-muted transition hover:bg-[#1c1b1b] hover:text-white"
             >
               {isNotifications ? (
                 unreadCount ? <NotificationMark unreadCount={unreadCount} /> : <Bell size={18} />
@@ -122,7 +126,7 @@ export default function LeftSidebar() {
         <button
           type="button"
           onClick={openComposer}
-          className="editorial-title flex w-full items-center justify-center rounded-md bg-accent px-4 py-3 text-sm font-bold text-white shadow-[0_12px_24px_rgba(224,36,36,0.18)]"
+          className="editorial-title hover-lift flex w-full items-center justify-center rounded-md bg-accent px-4 py-3 text-sm font-bold text-white shadow-[0_12px_24px_rgba(224,36,36,0.18)]"
         >
           <PenSquare size={16} className="mr-2" />
           Post
@@ -130,7 +134,7 @@ export default function LeftSidebar() {
         <button
           type="button"
           onClick={handleLogout}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-white/10 px-4 py-3 text-sm font-medium text-muted transition hover:bg-[#1c1b1b] hover:text-white"
+          className="hover-lift mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-white/10 px-4 py-3 text-sm font-medium text-muted transition hover:bg-[#1c1b1b] hover:text-white"
         >
           <LogOut size={16} />
           <span>Logout</span>

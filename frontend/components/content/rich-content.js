@@ -25,10 +25,12 @@ function renderLine(line, lineIndex) {
     }
 
     if (part.startsWith("@")) {
+      const username = part.slice(1);
+
       return (
         <Link
           key={key}
-          href={`/search?q=${encodeURIComponent(part)}`}
+          href={`/profile/${encodeURIComponent(username)}`}
           className="font-medium text-accent transition hover:text-white"
         >
           {part}

@@ -9,92 +9,114 @@ const UserSettings = require("../modules/users/user-settings.model");
 async function seed() {
   await connectMongo();
 
-  const adminEmail = "admin@linked.local";
-  const adminUsername = "linked_admin";
-  const adminDisplayName = "LInkedAdmin";
-  const adminPassword = "Password123!";
+  await User.updateMany(
+    {
+      $or: [
+        { role: { $in: ["admin", "moderator"] } },
+        { username: { $in: ["jonatee"] } },
+        { email: { $in: ["oluwolejonatee@gmail.com"] } }
+      ]
+    },
+    {
+      isVerified: true,
+      modifiedAt: new Date()
+    }
+  );
 
-  let admin = await User.findOne({
-    $or: [{ email: adminEmail }, { username: adminUsername }]
+  const moderatorEmail = "moderator@linked.local";
+  const moderatorUsername = "linked_moderator";
+  const moderatorDisplayName = "LInkedModerator";
+  const moderatorPassword = "Password123!";
+
+  let moderator = await User.findOne({
+    $or: [{ email: moderatorEmail }, { username: moderatorUsername }]
   });
 
-  if (!admin) {
-    const passwordHash = await bcrypt.hash(adminPassword, 12);
+  if (!moderator) {
+    const passwordHash = await bcrypt.hash(moderatorPassword, 12);
 
-    admin = await User.create({
-      username: adminUsername,
-      usernameDisplay: adminDisplayName,
-      email: adminEmail,
+    moderator = await User.create({
+      username: moderatorUsername,
+      usernameDisplay: moderatorDisplayName,
+      email: moderatorEmail,
       passwordHash,
-      role: "admin",
+      role: "moderator",
       status: "active",
-      isEmailVerified: true
+      isEmailVerified: true,
+      isVerified: true
     });
 
     const profile = await Profile.create({
-      userId: admin.id,
-      displayName: adminDisplayName,
-      bio: "Administrator account for LInked.",
+      userId: moderator.id,
+      displayName: moderatorDisplayName,
+      bio: "Moderator account for LInked.",
       location: "Lagos"
     });
 
     const settings = await UserSettings.create({
-      userId: admin.id
+      userId: moderator.id
     });
 
-    admin.profileId = profile.id;
-    admin.settingsId = settings.id;
-    await admin.save();
+    moderator.profileId = profile.id;
+    moderator.settingsId = settings.id;
+    await moderator.save();
 
-    console.log("Admin bootstrap completed");
-    console.log("Admin login");
-    console.log(`  identity: ${adminEmail}`);
-    console.log(`  password: ${adminPassword}`);
+    console.log("Moderator bootstrap completed");
+    console.log("Moderator login");
+    console.log(`  identity: ${moderatorEmail}`);
+    console.log(`  password: ${moderatorPassword}`);
   } else {
     let shouldSave = false;
 
-    if (admin.role !== "admin") {
-      admin.role = "admin";
+    if (moderator.role !== "moderator") {
+      moderator.role = "moderator";
       shouldSave = true;
     }
 
-    if (admin.status !== "active") {
-      admin.status = "active";
+    if (moderator.status !== "active") {
+      moderator.status = "active";
       shouldSave = true;
     }
 
-    if (!admin.isEmailVerified) {
-      admin.isEmailVerified = true;
+    if (!moderator.isEmailVerified) {
+      moderator.isEmailVerified = true;
       shouldSave = true;
     }
 
-    if (!admin.profileId) {
+    if (!moderator.isVerified) {
+      moderator.isVerified = true;
+      shouldSave = true;
+    }
+
+    if (!moderator.profileId) {
       const profile = await Profile.create({
-        userId: admin.id,
-        displayName: admin.usernameDisplay || admin.username,
-        bio: "Administrator account for LInked.",
+        userId: moderator.id,
+        displayName: moderator.usernameDisplay || moderator.username,
+        bio: "Moderator account for LInked.",
         location: "Lagos"
       });
-      admin.profileId = profile.id;
+      moderator.profileId = profile.id;
       shouldSave = true;
     }
 
-    if (!admin.settingsId) {
+    if (!moderator.settingsId) {
       const settings = await UserSettings.create({
-        userId: admin.id
+        userId: moderator.id
       });
-      admin.settingsId = settings.id;
+      moderator.settingsId = settings.id;
       shouldSave = true;
     }
 
     if (shouldSave) {
-      await admin.save();
+      await moderator.save();
     }
 
-    console.log("Admin already exists");
-    console.log(`  identity: ${admin.email}`);
+    console.log("Moderator already exists");
+    console.log(`  identity: ${moderator.email}`);
     console.log("  password: existing password unchanged");
   }
+
+  console.log("Verified badge sync applied to admin, moderator, and jonatee accounts where present.");
 
   process.exit(0);
 }

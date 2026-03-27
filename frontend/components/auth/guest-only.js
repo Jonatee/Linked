@@ -50,7 +50,14 @@ export default function GuestOnly({ children }) {
   if (!ready) {
     return (
       <main className="subtle-grid flex min-h-screen items-center justify-center">
-        <div className="panel p-6 text-sm text-muted">Checking your session...</div>
+        <div className="panel p-6 text-sm text-muted">
+          Checking your session
+          <span className="loading-ellipsis" aria-hidden="true">
+            <span>.</span>
+            <span>.</span>
+            <span>.</span>
+          </span>
+        </div>
       </main>
     );
   }

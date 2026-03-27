@@ -64,6 +64,33 @@ async function enrichComments(comments) {
   });
 }
 
+async function withCommentViewerState(comments, viewerId = null) {
+  const safeComments = comments || [];
+  if (!viewerId || !safeComments.length) {
+    return safeComments.map((comment) => ({
+      ...comment,
+      viewerState: {
+        liked: false
+      }
+    }));
+  }
+
+  const reactions = await Reaction.find({
+    userId: viewerId,
+    targetType: "comment",
+    targetId: { $in: safeComments.map((comment) => comment.id) },
+    reactionType: "like"
+  }).lean();
+  const reactionIds = new Set(reactions.map((reaction) => reaction.targetId));
+
+  return safeComments.map((comment) => ({
+    ...comment,
+    viewerState: {
+      liked: reactionIds.has(comment.id)
+    }
+  }));
+}
+
 async function createComment(authorId, postId, payload, parentCommentId = null) {
   const post = await Post.findOne({ id: postId, deletedAt: null });
   if (!post) {
@@ -73,8 +100,9 @@ async function createComment(authorId, postId, payload, parentCommentId = null) 
   await blockingService.assertCanInteract(authorId, post.authorId, "You cannot reply to this post");
 
   let rootCommentId = null;
+  let parentComment = null;
   if (parentCommentId) {
-    const parentComment = await Comment.findOne({ id: parentCommentId, postId, deletedAt: null }).lean();
+    parentComment = await Comment.findOne({ id: parentCommentId, postId, deletedAt: null }).lean();
     if (!parentComment) {
       throw new AppError("Parent comment not found", 404);
     }
@@ -95,15 +123,32 @@ async function createComment(authorId, postId, payload, parentCommentId = null) 
   });
 
   await Post.updateOne({ id: postId }, { $inc: { "stats.commentCount": 1 } });
+  if (parentCommentId) {
+    await Comment.updateOne({ id: parentCommentId }, { $inc: { "stats.replyCount": 1 } });
+  }
 
-  await Notification.create({
-    recipientId: post.authorId,
-    actorId: authorId,
-    type: parentCommentId ? "reply" : "comment",
-    entityType: "comment",
-    entityId: comment.id,
-    message: parentCommentId ? "replied in your thread" : "commented on your post"
-  });
+  if (parentCommentId) {
+    if (parentComment?.authorId && parentComment.authorId !== authorId) {
+      await Notification.create({
+        recipientId: parentComment.authorId,
+        actorId: authorId,
+        type: "reply",
+        entityType: "comment",
+        entityId: comment.id,
+        message: "replied in your thread"
+      });
+    }
+  } else if (post.authorId !== authorId) {
+    await Notification.create({
+      recipientId: post.authorId,
+      actorId: authorId,
+      type: "comment",
+      entityType: "comment",
+      entityId: comment.id,
+      message: "commented on your post"
+    });
+  }
+
   await notifyNewCommentMentions({
     actorId: authorId,
     commentId: comment.id,
@@ -120,7 +165,8 @@ async function getComments(postId, viewerId = null) {
     comments.map((comment) => comment.authorId)
   );
   const visibleComments = comments.filter((comment) => visibleAuthorIds.includes(comment.authorId));
-  return enrichComments(visibleComments);
+  const enrichedComments = await enrichComments(visibleComments);
+  return withCommentViewerState(enrichedComments, viewerId);
 }
 
 async function getCommentsByAuthor(authorId, query = {}, viewerId = null) {
@@ -142,6 +188,7 @@ async function getCommentsByAuthor(authorId, query = {}, viewerId = null) {
   );
   const visibleComments = comments.filter((comment) => visibleAuthorIds.includes(comment.authorId));
   const enrichedItems = await enrichComments(visibleComments);
+  const commentsWithViewerState = await withCommentViewerState(enrichedItems, viewerId);
   const postIds = [...new Set(enrichedItems.map((comment) => comment.postId).filter(Boolean))];
   const posts = postIds.length
     ? await Post.find({ id: { $in: postIds }, deletedAt: null, status: "active" })
@@ -154,7 +201,7 @@ async function getCommentsByAuthor(authorId, query = {}, viewerId = null) {
     postAuthors.length ? Profile.find({ userId: { $in: postAuthors } }).lean() : []
   ]);
 
-  const itemsWithPosts = enrichedItems.map((comment) => {
+  const itemsWithPosts = commentsWithViewerState.map((comment) => {
     const post = posts.find((entry) => entry.id === comment.postId) || null;
     const postAuthor = post ? postUsers.find((entry) => entry.id === post.authorId) || null : null;
     const postProfile = post ? postProfiles.find((entry) => entry.userId === post.authorId) || null : null;
@@ -249,6 +296,16 @@ async function toggleCommentReaction(userId, commentId, shouldReact) {
         reactionType: "like"
       });
       await Comment.updateOne({ id: commentId }, { $inc: { "stats.likeCount": 1 } });
+      if (comment.authorId !== userId) {
+        await Notification.create({
+          recipientId: comment.authorId,
+          actorId: userId,
+          type: "like_comment",
+          entityType: "comment",
+          entityId: commentId,
+          message: "liked your comment"
+        });
+      }
     }
   } else {
     const existing = await Reaction.findOne({
