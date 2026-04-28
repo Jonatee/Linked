@@ -173,7 +173,7 @@ function CommentNode({ comment, childrenMap, depth = 0 }) {
                 className="inline-flex items-center gap-2 text-sm transition hover:text-white"
               >
                 <MessageCircle size={15} />
-                <span>{comment.stats?.replyCount ? comment.stats.replyCount : "Reply"}</span>
+                {comment.stats?.replyCount ? <span>{comment.stats.replyCount}</span> : null}
               </button>
               <button
                 type="button"

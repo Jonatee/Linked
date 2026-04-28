@@ -10,13 +10,12 @@ import { getLoginRedirectPath } from "@/lib/auth-redirect";
 import { Button } from "@/components/ui/button";
 import useAuthStore from "@/stores/auth-store";
 
-function ActionControl({ icon: Icon, label, count, active, onClick, disabled = false, href }) {
+function ActionControl({ icon: Icon, count, active, onClick, disabled = false, href, ariaLabel }) {
   if (href) {
     return (
-      <Link href={href} className="inline-flex items-center gap-2 text-xs text-muted transition hover:text-white">
+      <Link href={href} aria-label={ariaLabel} className="inline-flex items-center gap-2 text-xs text-muted transition hover:text-white">
         <span className="action-pop inline-flex items-center gap-2">
           <Icon size={16} fill={active ? "currentColor" : "none"} />
-          <span>{label}</span>
           {typeof count === "number" ? <span>{count}</span> : null}
         </span>
       </Link>
@@ -29,10 +28,10 @@ function ActionControl({ icon: Icon, label, count, active, onClick, disabled = f
       variant="ghost"
       onClick={onClick}
       disabled={disabled}
+      aria-label={ariaLabel}
       className={`action-pop gap-2 px-0 py-0 text-xs ${active ? "text-accent" : "text-muted"}`}
     >
       <Icon size={16} fill={active ? "currentColor" : "none"} />
-      <span>{label}</span>
       {typeof count === "number" ? <span>{count}</span> : null}
     </Button>
   );
@@ -54,7 +53,6 @@ export default function PostActions({ post }) {
     repostCount: post.stats.repostCount || 0,
     commentCount: post.stats.commentCount || 0
   });
-  const [shareLabel, setShareLabel] = useState("Share");
 
   useEffect(() => {
     setLiked(Boolean(post.viewerState?.liked));
@@ -66,7 +64,6 @@ export default function PostActions({ post }) {
       repostCount: post.stats.repostCount || 0,
       commentCount: post.stats.commentCount || 0
     });
-    setShareLabel("Share");
   }, [post]);
 
   const invalidateAll = () => {
@@ -204,15 +201,11 @@ export default function PostActions({ post }) {
           text: post.content || post.quoteText || "Check out this post on LInked",
           url
         });
-        setShareLabel("Shared");
       } else if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
-        setShareLabel("Copied");
       }
     } catch {
-      setShareLabel("Share");
-    } finally {
-      window.setTimeout(() => setShareLabel("Share"), 1800);
+      // Keep silent when share is cancelled or unavailable.
     }
   }
 
@@ -220,36 +213,36 @@ export default function PostActions({ post }) {
     <div className="mt-4 flex flex-wrap items-center gap-5">
       <ActionControl
         icon={MessageCircle}
-        label="Reply"
         count={counts.commentCount}
         active={false}
+        ariaLabel="Reply"
         href={currentUser ? `/posts/${targetPostId}` : getLoginRedirectPath(pathname || `/posts/${targetPostId}`)}
       />
       <ActionControl
         icon={Repeat2}
-        label="Repost"
         count={counts.repostCount}
         active={reposted}
+        ariaLabel="Repost"
         onClick={handleRepost}
         disabled={actionsDisabled}
       />
       <ActionControl
         icon={Heart}
-        label="Like"
         count={counts.likeCount}
         active={liked}
+        ariaLabel="Like"
         onClick={handleLike}
         disabled={actionsDisabled}
       />
       <ActionControl
         icon={Bookmark}
-        label="Save"
         count={counts.bookmarkCount}
         active={bookmarked}
+        ariaLabel="Save"
         onClick={handleBookmark}
         disabled={actionsDisabled}
       />
-      <ActionControl icon={Share} label={shareLabel} active={false} onClick={handleShare} />
+      <ActionControl icon={Share} active={false} ariaLabel="Share" onClick={handleShare} />
     </div>
   );
 }
