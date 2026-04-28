@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Image as ImageIcon, List, MapPin, Smile } from "lucide-react";
 import api from "@/lib/api";
 import SquareAvatar from "@/components/branding/square-avatar";
 import { Textarea } from "@/components/ui/textarea";
@@ -138,10 +139,48 @@ export default function PostComposer({ variant = "inline" }) {
               </button>
             ) : null}
           </div>
-          <Textarea
-            placeholder="What is happening in your corner of LInked?"
-            {...form.register("content")}
-          />
+          <div className="overflow-hidden rounded-[20px] border border-white/10 bg-[#222223] shadow-[0_10px_24px_rgba(0,0,0,0.22)]">
+            <div className="px-4 pb-3 pt-4">
+              <Textarea
+                placeholder="What is happening in your corner of LInked?"
+                className="min-h-[88px] rounded-none bg-transparent px-0 py-0 text-[15px] leading-6 text-[#ece7e2] placeholder:text-[#6b6663] focus:ring-0"
+                {...form.register("content")}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t border-white/6 px-4 py-3">
+              <div className="flex items-center gap-2 text-[#6f6b68]">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileSelection}
+                />
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-md p-1.5 transition hover:bg-white/5 hover:text-[#ff5a5f]" aria-label="Add image or video">
+                  <ImageIcon size={16} />
+                </button>
+                <button type="button" className="rounded-md p-1.5 transition hover:bg-white/5 hover:text-[#ff5a5f]" aria-label="Add emoji">
+                  <Smile size={16} />
+                </button>
+                <button type="button" className="rounded-md p-1.5 transition hover:bg-white/5 hover:text-[#ff5a5f]" aria-label="Add list">
+                  <List size={16} />
+                </button>
+                <button type="button" className="rounded-md p-1.5 transition hover:bg-white/5 hover:text-[#ff5a5f]" aria-label="Add location">
+                  <MapPin size={16} />
+                </button>
+                <span className="ml-2 text-xs text-muted">Up to 4 images or 1 video</span>
+              </div>
+              <Button
+                type="submit"
+                loading={mutation.isPending}
+                disabled={uploading || (!form.watch("content")?.trim() && !mediaItems.length)}
+                className="rounded-full px-6 py-2.5"
+              >
+                Post
+              </Button>
+            </div>
+          </div>
           {mediaItems.length ? (
             <div className={cn("mt-4 grid gap-3", mediaItems.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
               {mediaItems.map((item) => (
@@ -163,25 +202,6 @@ export default function PostComposer({ variant = "inline" }) {
               ))}
             </div>
           ) : null}
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,video/*"
-                multiple
-                className="hidden"
-                onChange={handleFileSelection}
-              />
-              <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()} loading={uploading}>
-                Add media
-              </Button>
-              <div className="text-xs text-muted">Up to 4 images or 1 video</div>
-            </div>
-            <Button type="submit" loading={mutation.isPending}>
-              Post
-            </Button>
-          </div>
         </div>
       </div>
     </form>

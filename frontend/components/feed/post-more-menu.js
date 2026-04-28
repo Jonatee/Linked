@@ -9,6 +9,7 @@ import { getLoginRedirectPath } from "@/lib/auth-redirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import useAuthStore from "@/stores/auth-store";
+import useUiStore from "@/stores/ui-store";
 
 const REPORT_REASONS = [
   { value: "spam", label: "Spam or scam" },
@@ -41,6 +42,7 @@ export default function PostMoreMenu({ post }) {
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.currentUser);
+  const openConfirmModal = useUiStore((state) => state.openConfirmModal);
   const [open, setOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reported, setReported] = useState(false);
@@ -127,11 +129,14 @@ export default function PostMoreMenu({ post }) {
   const busy = deleteMutation.isPending || reportMutation.isPending || blockMutation.isPending;
 
   function handleDelete() {
-    if (!window.confirm("Delete this post?")) {
-      return;
-    }
-
-    deleteMutation.mutate();
+    openConfirmModal({
+      title: "Delete Post",
+      message: "Are you sure you want to delete this post? This action cannot be undone.",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      destructive: true,
+      onConfirm: () => deleteMutation.mutateAsync()
+    });
   }
 
   function handleReport() {
@@ -149,12 +154,17 @@ export default function PostMoreMenu({ post }) {
       return;
     }
 
-    const label = post.viewerState.blockedByViewer ? "unblock" : "block";
-    if (!window.confirm(`Do you want to ${label} @${post.author.username}?`)) {
-      return;
-    }
-
-    blockMutation.mutate();
+    const isBlocking = !post.viewerState.blockedByViewer;
+    const action = isBlocking ? "block" : "unblock";
+    
+    openConfirmModal({
+      title: isBlocking ? "Block User" : "Unblock User",
+      message: `Are you sure you want to ${action} @${post.author.username}?`,
+      confirmText: isBlocking ? "Block" : "Unblock",
+      cancelText: "Cancel",
+      destructive: isBlocking,
+      onConfirm: () => blockMutation.mutateAsync()
+    });
   }
 
   function submitReport() {

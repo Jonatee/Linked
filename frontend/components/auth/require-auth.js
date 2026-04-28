@@ -74,19 +74,11 @@ export default function RequireAuth({ children, enabled = true }) {
     };
   }, [clearSession, currentUser, enabled, router, setSession]);
 
+  // Show children immediately, let session check happen in background
+  // Only redirect if auth is required and we definitively know user is not authenticated
   if (enabled && !ready && !currentUser) {
-    return (
-      <main className="subtle-grid flex min-h-screen items-center justify-center">
-        <div className="panel p-6 text-sm text-muted">
-          Checking your session
-          <span className="loading-ellipsis" aria-hidden="true">
-            <span>.</span>
-            <span>.</span>
-            <span>.</span>
-          </span>
-        </div>
-      </main>
-    );
+    // Return null to show nothing while checking, or return children to show content immediately
+    return children; // Show content immediately, auth check happens in background
   }
 
   return children;
