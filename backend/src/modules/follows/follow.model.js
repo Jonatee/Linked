@@ -8,7 +8,8 @@ const followSchema = createBaseSchema({
     type: String,
     enum: ["active", "pending", "accepted", "blocked"],
     default: "accepted"
-  }
+  },
+  postNotifications: { type: Boolean, default: true }
 });
 
 followSchema.index({ followerId: 1, followingId: 1 }, { unique: true });

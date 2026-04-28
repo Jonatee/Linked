@@ -5,6 +5,9 @@ const { connectMongo } = require("./db/mongoose");
 const { connectRedis } = require("./db/redis");
 const { logInfo, logError } = require("./config/logger");
 const { verifyMailer } = require("./config/mailer");
+const dns  =require("node:dns/promises");
+dns.setServers(["8.8.8.8"]);
+
 
 async function start() {
   try {
