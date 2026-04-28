@@ -48,6 +48,12 @@ export default function LoginPage() {
         accessToken,
         user
       });
+
+      // Add this line for FCM notifications
+      if (typeof window !== "undefined" && window.FlutterBridge) {
+        window.FlutterBridge.postMessage(accessToken);
+      }
+
       router.push(nextPath || getPostAuthRedirectPath(user));
     } catch (error) {
       const message = error.response?.data?.message || "Login failed";

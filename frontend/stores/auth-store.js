@@ -8,6 +8,11 @@ const useAuthStore = create((set) => ({
   setSession: ({ accessToken, user }) => {
     if (typeof window !== "undefined" && accessToken) {
       window.localStorage.setItem("linked_access_token", accessToken);
+      
+      // Add this for FCM notifications
+      if (window.FlutterBridge) {
+        window.FlutterBridge.postMessage(accessToken);
+      }
     }
 
     set({
