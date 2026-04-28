@@ -8,6 +8,32 @@ import CommentComposer from "@/components/comments/comment-composer";
 import { formatPost } from "@/lib/formatters";
 import { PostDetailSkeleton } from "@/components/loading/screen-skeletons";
 
+function formatCommentTime(value) {
+  if (!value) {
+    return "";
+  }
+
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) {
+    return "";
+  }
+
+  const diffMs = Date.now() - timestamp;
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diffMs < hour) {
+    return `${Math.max(1, Math.floor(diffMs / minute))}m`;
+  }
+
+  if (diffMs < day) {
+    return `${Math.floor(diffMs / hour)}h`;
+  }
+
+  return `${Math.floor(diffMs / day)}d`;
+}
+
 export default function PostDetailData({ postId }) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["post", postId],
@@ -60,6 +86,7 @@ export default function PostDetailData({ postId }) {
               .toUpperCase()
           },
           content: comment.content,
+          createdAtLabel: formatCommentTime(comment.createdAt),
           stats: {
             likeCount: comment.stats?.likeCount || 0,
             replyCount: comment.stats?.replyCount || 0
