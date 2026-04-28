@@ -1,7 +1,7 @@
 const AppError = require("../../utils/app-error");
 const Follow = require("./follow.model");
 const User = require("../users/user.model");
-const Notification = require("../notifications/notification.model");
+const { createNotification } = require("../notifications/notifications.service");
 const blockingService = require("../users/blocking.service");
 
 async function followUser(followerId, followingId) {
@@ -28,7 +28,7 @@ async function followUser(followerId, followingId) {
     await User.updateOne({ id: followingId }, { $inc: { "stats.followerCount": 1 } });
   }
 
-  await Notification.create({
+  await createNotification({
     recipientId: followingId,
     actorId: followerId,
     type: "follow",
@@ -50,7 +50,19 @@ async function unfollowUser(followerId, followingId) {
   return { success: true };
 }
 
+async function enablePostNotifications(followerId, followingId) {
+  await Follow.updateOne({ followerId, followingId }, { postNotifications: true });
+  return { success: true };
+}
+
+async function disablePostNotifications(followerId, followingId) {
+  await Follow.updateOne({ followerId, followingId }, { postNotifications: false });
+  return { success: true };
+}
+
 module.exports = {
   followUser,
-  unfollowUser
+  unfollowUser,
+  enablePostNotifications,
+  disablePostNotifications
 };

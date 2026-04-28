@@ -19,6 +19,7 @@ const notificationRoutes = require("./modules/notifications/notifications.routes
 const searchRoutes = require("./modules/search/search.routes");
 const moderationRoutes = require("./modules/moderation/moderation.routes");
 const adminRoutes = require("./modules/admin/admin.routes");
+const deviceTokenRoutes = require("./modules/devices/device-tokens.routes");
 const { globalApiRateLimiter } = require("./middlewares/rate-limit");
 
 const app = express();
@@ -55,6 +56,7 @@ app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/search", searchRoutes);
 app.use("/api/v1", moderationRoutes);
 app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/devices/tokens", deviceTokenRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

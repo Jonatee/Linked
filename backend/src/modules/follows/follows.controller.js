@@ -12,8 +12,20 @@ const unfollow = asyncHandler(async (req, res) => {
   return sendSuccess(res, { message: "Unfollowed user", data: result });
 });
 
+const enablePostNotifications = asyncHandler(async (req, res) => {
+  const result = await followsService.enablePostNotifications(req.user.id, req.params.userId);
+  return sendSuccess(res, { message: "Post notifications enabled", data: result });
+});
+
+const disablePostNotifications = asyncHandler(async (req, res) => {
+  const result = await followsService.disablePostNotifications(req.user.id, req.params.userId);
+  return sendSuccess(res, { message: "Post notifications disabled", data: result });
+});
+
 module.exports = {
   follow,
-  unfollow
+  unfollow,
+  enablePostNotifications,
+  disablePostNotifications
 };
 

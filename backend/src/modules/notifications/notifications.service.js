@@ -3,6 +3,15 @@ const User = require("../users/user.model");
 const Profile = require("../profiles/profile.model");
 const Comment = require("../comments/comment.model");
 const Media = require("../media/media.model");
+const { sendToUser } = require("../../utils/fcm");
+
+async function createNotification({ recipientId, actorId = null, type, entityType = "", entityId = "", message = "" }) {
+  const notification = await Notification.create({ recipientId, actorId, type, entityType, entityId, message });
+
+  sendToUser(recipientId, { title: "New notification", body: message || type, data: { type, entityType, entityId: entityId || "" } }).catch(() => {});
+
+  return notification;
+}
 
 async function createMentionNotifications({ recipientIds = [], actorId, entityType, entityId, message }) {
   const targetRecipientIds = [...new Set(recipientIds.filter((recipientId) => recipientId && recipientId !== actorId))];
@@ -11,15 +20,10 @@ async function createMentionNotifications({ recipientIds = [], actorId, entityTy
     return [];
   }
 
-  return Notification.insertMany(
-    targetRecipientIds.map((recipientId) => ({
-      recipientId,
-      actorId,
-      type: "mention",
-      entityType,
-      entityId,
-      message
-    }))
+  return Promise.all(
+    targetRecipientIds.map((recipientId) =>
+      createNotification({ recipientId, actorId, type: "mention", entityType, entityId, message })
+    )
   );
 }
 
@@ -90,6 +94,7 @@ async function markAllRead(recipientId) {
 }
 
 module.exports = {
+  createNotification,
   createMentionNotifications,
   listNotifications,
   markRead,

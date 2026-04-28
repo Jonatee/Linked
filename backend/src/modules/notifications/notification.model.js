@@ -7,7 +7,7 @@ const notificationSchema = createBaseSchema(
     actorId: { type: String, default: null },
     type: {
       type: String,
-      enum: ["follow", "like_post", "like_comment", "comment", "reply", "repost", "mention", "system", "moderation"],
+      enum: ["follow", "like_post", "like_comment", "comment", "reply", "repost", "mention", "system", "moderation", "new_post"],
       required: true
     },
     entityType: { type: String, default: "" },

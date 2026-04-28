@@ -8,8 +8,8 @@ const Follow = require("../follows/follow.model");
 const Reaction = require("../reactions/reaction.model");
 const Bookmark = require("../bookmarks/bookmark.model");
 const Repost = require("../reposts/repost.model");
-const Notification = require("../notifications/notification.model");
 const notificationService = require("../notifications/notifications.service");
+const { createNotification } = notificationService;
 const Hashtag = require("../search/hashtag.model");
 const Profile = require("../profiles/profile.model");
 const blockingService = require("../users/blocking.service");
@@ -198,6 +198,20 @@ async function createPost(authorId, payload) {
     postId: post.id,
     mentionUserIds
   });
+
+  const followerDocs = await Follow.find({ followingId: authorId, postNotifications: true }).lean();
+  await Promise.all(
+    followerDocs.map((f) =>
+      createNotification({
+        recipientId: f.followerId,
+        actorId: authorId,
+        type: "new_post",
+        entityType: "post",
+        entityId: post.id,
+        message: "made a new post"
+      })
+    )
+  );
 
   return post;
 }
@@ -505,7 +519,7 @@ async function toggleReaction(userId, postId, shouldReact) {
       });
       await Post.updateOne({ id: postId }, { $inc: { "stats.likeCount": 1 } });
       if (post.authorId !== userId) {
-        await Notification.create({
+      await createNotification({
           recipientId: post.authorId,
           actorId: userId,
           type: "like_post",

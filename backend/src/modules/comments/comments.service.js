@@ -3,11 +3,11 @@ const { extractMentions } = require("../../utils/helpers");
 const Comment = require("./comment.model");
 const Post = require("../posts/post.model");
 const Reaction = require("../reactions/reaction.model");
-const Notification = require("../notifications/notification.model");
 const User = require("../users/user.model");
 const Profile = require("../profiles/profile.model");
 const Media = require("../media/media.model");
 const notificationService = require("../notifications/notifications.service");
+const { createNotification } = notificationService;
 const blockingService = require("../users/blocking.service");
 
 async function hydrateMentionIds(content) {
@@ -129,7 +129,7 @@ async function createComment(authorId, postId, payload, parentCommentId = null) 
 
   if (parentCommentId) {
     if (parentComment?.authorId && parentComment.authorId !== authorId) {
-      await Notification.create({
+      await createNotification({
         recipientId: parentComment.authorId,
         actorId: authorId,
         type: "reply",
@@ -139,7 +139,7 @@ async function createComment(authorId, postId, payload, parentCommentId = null) 
       });
     }
   } else if (post.authorId !== authorId) {
-    await Notification.create({
+    await createNotification({
       recipientId: post.authorId,
       actorId: authorId,
       type: "comment",
@@ -297,14 +297,14 @@ async function toggleCommentReaction(userId, commentId, shouldReact) {
       });
       await Comment.updateOne({ id: commentId }, { $inc: { "stats.likeCount": 1 } });
       if (comment.authorId !== userId) {
-        await Notification.create({
-          recipientId: comment.authorId,
-          actorId: userId,
-          type: "like_comment",
-          entityType: "comment",
-          entityId: commentId,
-          message: "liked your comment"
-        });
+      await createNotification({
+        recipientId: comment.authorId,
+        actorId: userId,
+        type: "like_comment",
+        entityType: "comment",
+        entityId: commentId,
+        message: "liked your comment"
+      });
       }
     }
   } else {

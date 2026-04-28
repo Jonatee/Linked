@@ -29,6 +29,7 @@ const env = {
     apiSecret: readEnv("CLOUDINARY_API_SECRET"),
     uploadFolder: readEnv("CLOUDINARY_UPLOAD_FOLDER", "linked")
   },
+  firebaseServiceAccount: readEnv("FIREBASE_SERVICE_ACCOUNT", "{}"),
   mail: {
     provider: readEnv("MAIL_PROVIDER", "smtp"),
     from: readEnv("EMAIL_FROM", "no-reply@linked.local"),
