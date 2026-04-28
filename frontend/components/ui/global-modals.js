@@ -26,10 +26,12 @@ export default function GlobalModals() {
       onConfirm={handleConfirm}
       title={confirmModal.title}
       message={confirmModal.message}
+      content={confirmModal.content}
       confirmText={confirmModal.confirmText}
       cancelText={confirmModal.cancelText}
       destructive={confirmModal.destructive}
       loading={confirmModal.loading}
+      confirmDisabled={confirmModal.confirmDisabled}
     />
   );
 }

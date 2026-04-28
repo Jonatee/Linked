@@ -44,7 +44,6 @@ export default function PostMoreMenu({ post }) {
   const currentUser = useAuthStore((state) => state.currentUser);
   const openConfirmModal = useUiStore((state) => state.openConfirmModal);
   const [open, setOpen] = useState(false);
-  const [reportOpen, setReportOpen] = useState(false);
   const [reported, setReported] = useState(false);
   const [reasonCode, setReasonCode] = useState(REPORT_REASONS[0].value);
   const [description, setDescription] = useState("");
@@ -104,10 +103,10 @@ export default function PostMoreMenu({ post }) {
     },
     onSuccess: (data) => {
       setReported(true);
-      setReportOpen(false);
       setOpen(false);
       if (!data?.alreadyReported) {
         setDescription("");
+        setReasonCode(REPORT_REASONS[0].value);
       }
     }
   });
@@ -145,7 +144,38 @@ export default function PostMoreMenu({ post }) {
       return;
     }
 
-    setReportOpen(true);
+    openConfirmModal({
+      title: "Report Post",
+      message: "Choose a reason for reporting this post.",
+      confirmText: reported ? "Already reported" : "Submit report",
+      cancelText: "Cancel",
+      destructive: false,
+      confirmDisabled: reported,
+      content: (
+        <div className="grid gap-2">
+          {REPORT_REASONS.map((reason) => (
+            <button
+              key={reason.value}
+              type="button"
+              onClick={() => setReasonCode(reason.value)}
+              className={`rounded-xl border px-3 py-2 text-left text-sm transition ${
+                reasonCode === reason.value
+                  ? "border-accent bg-accent/10 text-white"
+                  : "border-white/10 bg-[#111] text-[#ece7e2] hover:bg-white/5"
+              }`}
+            >
+              {reason.label}
+            </button>
+          ))}
+          <Input
+            placeholder="Optional details"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+        </div>
+      ),
+      onConfirm: () => reportMutation.mutateAsync()
+    });
   }
 
   function handleBlock() {
@@ -156,7 +186,7 @@ export default function PostMoreMenu({ post }) {
 
     const isBlocking = !post.viewerState.blockedByViewer;
     const action = isBlocking ? "block" : "unblock";
-    
+
     openConfirmModal({
       title: isBlocking ? "Block User" : "Unblock User",
       message: `Are you sure you want to ${action} @${post.author.username}?`,
@@ -167,14 +197,6 @@ export default function PostMoreMenu({ post }) {
     });
   }
 
-  function submitReport() {
-    if (reported || reportMutation.isPending) {
-      return;
-    }
-
-    reportMutation.mutate();
-  }
-
   return (
     <div ref={containerRef} className="relative z-30">
       {open ? (
@@ -183,7 +205,6 @@ export default function PostMoreMenu({ post }) {
           aria-hidden="true"
           onClick={() => {
             setOpen(false);
-            setReportOpen(false);
           }}
         />
       ) : null}
@@ -233,42 +254,6 @@ export default function PostMoreMenu({ post }) {
               />
             </>
           )}
-        </div>
-      ) : null}
-
-      {open && reportOpen ? (
-        <div className="absolute right-0 top-11 z-40 w-[320px] rounded-[18px] border border-white/10 bg-[#141313] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
-          <div className="editorial-title text-sm font-bold text-white">Report post</div>
-          <p className="mt-2 text-xs text-muted">Choose a reason for reporting this post.</p>
-          <div className="mt-4 grid gap-2">
-            {REPORT_REASONS.map((reason) => (
-              <button
-                key={reason.value}
-                type="button"
-                onClick={() => setReasonCode(reason.value)}
-                className={`rounded-xl border px-3 py-2 text-left text-sm transition ${
-                  reasonCode === reason.value
-                    ? "border-accent bg-accent/10 text-white"
-                    : "border-white/10 bg-[#111] text-[#ece7e2] hover:bg-white/5"
-                }`}
-              >
-                {reason.label}
-              </button>
-            ))}
-            <Input
-              placeholder="Optional details"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="ghost" onClick={() => setReportOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="button" loading={reportMutation.isPending} disabled={reported} onClick={submitReport}>
-                {reported ? "Already reported" : "Submit report"}
-              </Button>
-            </div>
-          </div>
         </div>
       ) : null}
     </div>

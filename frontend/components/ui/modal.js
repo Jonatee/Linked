@@ -4,13 +4,13 @@ import { useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function Modal({ 
-  isOpen, 
-  onClose, 
-  title, 
-  children, 
+export function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
   size = "md",
-  showCloseButton = true 
+  showCloseButton = true
 }) {
   useEffect(() => {
     if (isOpen) {
@@ -44,14 +44,14 @@ export function Modal({
 
   const sizeClasses = {
     sm: "max-w-md",
-    md: "max-w-lg", 
+    md: "max-w-lg",
     lg: "max-w-2xl",
     xl: "max-w-4xl"
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div 
+      <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
@@ -71,36 +71,38 @@ export function Modal({
             )}
           </div>
         )}
-        <div className="p-6">
-          {children}
-        </div>
+        <div className="p-6">{children}</div>
       </div>
     </div>
   );
 }
 
-export function ConfirmModal({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  title, 
-  message, 
-  confirmText = "Confirm", 
+export function ConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  content,
+  confirmText = "Confirm",
   cancelText = "Cancel",
   destructive = false,
-  loading = false 
+  loading = false,
+  confirmDisabled = false
 }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
       <div className="space-y-4">
-        <p className="text-sm text-[#ece7e2] leading-6">{message}</p>
+        {message ? <p className="text-sm leading-6 text-[#ece7e2]">{message}</p> : null}
+        {content ? <div>{content}</div> : null}
         <div className="flex justify-end gap-3">
           <Button variant="ghost" onClick={onClose} disabled={loading}>
             {cancelText}
           </Button>
-          <Button 
-            onClick={onConfirm} 
+          <Button
+            onClick={onConfirm}
             loading={loading}
+            disabled={confirmDisabled || loading}
             className={destructive ? "bg-accent hover:bg-accent/90" : ""}
           >
             {confirmText}
