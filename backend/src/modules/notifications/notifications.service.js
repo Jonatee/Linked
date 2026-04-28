@@ -8,7 +8,76 @@ const { sendToUser } = require("../../utils/fcm");
 async function createNotification({ recipientId, actorId = null, type, entityType = "", entityId = "", message = "" }) {
   const notification = await Notification.create({ recipientId, actorId, type, entityType, entityId, message });
 
-  sendToUser(recipientId, { title: "New notification", body: message || type, data: { type, entityType, entityId: entityId || "" } }).catch(() => {});
+  // Get actor info for dynamic notification title and navigation data
+  let notificationTitle = "New notification";
+  let notificationBody = message || type;
+  let navigationData = { type, entityType, entityId: entityId || "" };
+  
+  if (actorId) {
+    try {
+      const actor = await User.findOne({ id: actorId, deletedAt: null }).lean();
+      const profile = await Profile.findOne({ userId: actorId }).lean();
+      
+      if (actor) {
+        const displayName = profile?.displayName || actor.usernameDisplay || actor.username;
+        
+        switch (type) {
+          case "like":
+            notificationTitle = `${displayName} liked your post`;
+            break;
+          case "comment":
+            notificationTitle = `${displayName} commented on your post`;
+            break;
+          case "follow":
+            notificationTitle = `${displayName} started following you`;
+            break;
+          case "mention":
+            notificationTitle = `${displayName} mentioned you`;
+            break;
+          default:
+            notificationTitle = `${displayName} - ${type}`;
+        }
+        
+        // Add actor info to navigation data
+        navigationData.actorId = actorId;
+        navigationData.actorUsername = actor.username;
+      }
+    } catch (error) {
+      // Fallback to default title if user lookup fails
+      console.error('Failed to get actor info for notification:', error);
+    }
+  }
+
+  // Determine navigation route based on notification type and entity
+  let webUrl = "/notifications"; // default fallback
+
+  if (entityType === "post" && entityId) {
+    webUrl = `/posts/${entityId}`;
+  } else if (entityType === "comment" && entityId) {
+    // For comments, we need to get the post ID to navigate to the post
+    try {
+      const comment = await Comment.findOne({ id: entityId, deletedAt: null }).lean();
+      if (comment?.postId) {
+        webUrl = `/posts/${comment.postId}`;
+      }
+    } catch (error) {
+      console.error('Failed to get comment info for navigation:', error);
+    }
+  } else if (entityType === "user" && navigationData.actorUsername) {
+    webUrl = `/profile/${navigationData.actorUsername}`;
+  } else if (type === "follow" && navigationData.actorUsername) {
+    webUrl = `/profile/${navigationData.actorUsername}`;
+  }
+
+  // Add navigation info to FCM data
+  navigationData.webUrl = webUrl;
+  navigationData.fullUrl = `${process.env.FRONTEND_ORIGIN || 'https://linked-theta.vercel.app'}${webUrl}`;
+
+  sendToUser(recipientId, { 
+    title: notificationTitle, 
+    body: notificationBody, 
+    data: navigationData
+  }).catch(() => {});
 
   return notification;
 }
