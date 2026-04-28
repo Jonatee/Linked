@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { canAttemptSessionCheck, recordSessionCheckAttempt, resetSessionCheckAttempts } from "@/lib/session-check";
@@ -8,7 +8,6 @@ import { getPostAuthRedirectPath } from "@/lib/auth-redirect";
 
 export default function GuestOnly({ children }) {
   const router = useRouter();
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -17,12 +16,10 @@ export default function GuestOnly({ children }) {
       const token = window.localStorage.getItem("linked_access_token");
 
       if (!token) {
-        setReady(true);
         return;
       }
 
       if (!canAttemptSessionCheck()) {
-        setReady(true);
         return;
       }
 
@@ -34,9 +31,7 @@ export default function GuestOnly({ children }) {
           router.replace(getPostAuthRedirectPath(response.data.data.user));
         }
       } catch (error) {
-        if (mounted) {
-          setReady(true);
-        }
+        // Stay on guest pages silently when the saved session is invalid.
       }
     }
 
@@ -46,21 +41,6 @@ export default function GuestOnly({ children }) {
       mounted = false;
     };
   }, [router]);
-
-  if (!ready) {
-    return (
-      <main className="subtle-grid flex min-h-screen items-center justify-center">
-        <div className="panel p-6 text-sm text-muted">
-          Checking your session
-          <span className="loading-ellipsis" aria-hidden="true">
-            <span>.</span>
-            <span>.</span>
-            <span>.</span>
-          </span>
-        </div>
-      </main>
-    );
-  }
 
   return children;
 }
