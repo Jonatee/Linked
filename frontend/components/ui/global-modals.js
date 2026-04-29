@@ -4,7 +4,17 @@ import { ConfirmModal } from "@/components/ui/modal";
 import useUiStore from "@/stores/ui-store";
 
 export default function GlobalModals() {
-  const { confirmModal, closeConfirmModal, setConfirmModalLoading } = useUiStore();
+  const { confirmModal, closeConfirmModal, resetConfirmModal, setConfirmModalLoading } = useUiStore();
+
+  const handleClose = () => {
+    if (confirmModal.loading) {
+      return;
+    }
+
+    confirmModal.onClose?.();
+    closeConfirmModal();
+    resetConfirmModal();
+  };
 
   const handleConfirm = async () => {
     if (confirmModal.onConfirm) {
@@ -12,9 +22,9 @@ export default function GlobalModals() {
       try {
         await confirmModal.onConfirm();
         closeConfirmModal();
+        resetConfirmModal();
       } catch (error) {
         setConfirmModalLoading(false);
-        // Error handling can be added here if needed
       }
     }
   };
@@ -22,7 +32,7 @@ export default function GlobalModals() {
   return (
     <ConfirmModal
       isOpen={confirmModal.isOpen}
-      onClose={closeConfirmModal}
+      onClose={handleClose}
       onConfirm={handleConfirm}
       title={confirmModal.title}
       message={confirmModal.message}

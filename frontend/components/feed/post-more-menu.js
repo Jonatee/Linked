@@ -8,7 +8,6 @@ import api from "@/lib/api";
 import { getLoginRedirectPath } from "@/lib/auth-redirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
 import useAuthStore from "@/stores/auth-store";
 import useUiStore from "@/stores/ui-store";
 
@@ -44,8 +43,10 @@ export default function PostMoreMenu({ post }) {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.currentUser);
   const openConfirmModal = useUiStore((state) => state.openConfirmModal);
+  const updateConfirmModal = useUiStore((state) => state.updateConfirmModal);
+  const confirmModal = useUiStore((state) => state.confirmModal);
   const [open, setOpen] = useState(false);
-  const [reportOpen, setReportOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reported, setReported] = useState(false);
   const [reasonCode, setReasonCode] = useState("");
   const [description, setDescription] = useState("");
@@ -105,8 +106,8 @@ export default function PostMoreMenu({ post }) {
     },
     onSuccess: (data) => {
       setReported(true);
-      setReportOpen(false);
       setOpen(false);
+      setReportModalOpen(false);
       if (!data?.alreadyReported) {
         setDescription("");
         setReasonCode("");
@@ -141,6 +142,58 @@ export default function PostMoreMenu({ post }) {
     });
   }
 
+  function resetReportState() {
+    setReportModalOpen(false);
+    if (!reportMutation.isPending) {
+      setReasonCode("");
+      setDescription("");
+    }
+  }
+
+  function buildReportContent() {
+    return (
+      <div className="grid gap-2">
+        {REPORT_REASONS.map((reason) => (
+          <button
+            key={reason.value}
+            type="button"
+            onClick={() => setReasonCode(reason.value)}
+            className={`rounded-xl border px-3 py-2 text-left text-sm transition ${
+              reasonCode === reason.value
+                ? "border-accent bg-accent/10 text-white"
+                : "border-white/10 bg-[#111] text-[#ece7e2] hover:bg-white/5"
+            }`}
+          >
+            {reason.label}
+          </button>
+        ))}
+        <Input
+          placeholder="Optional details"
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+        />
+      </div>
+    );
+  }
+
+  useEffect(() => {
+    if (!reportModalOpen) {
+      return;
+    }
+
+    updateConfirmModal({
+      title: "Report Post",
+      message: "Choose a reason for reporting this post.",
+      content: buildReportContent(),
+      confirmText: reported ? "Already reported" : "Submit report",
+      cancelText: "Cancel",
+      destructive: false,
+      confirmDisabled: !reasonCode || reported,
+      onClose: resetReportState,
+      onConfirm: () => reportMutation.mutateAsync()
+    });
+  }, [reportModalOpen, reasonCode, description, reported, reportMutation.isPending]);
+
   function handleReport() {
     if (!currentUser) {
       router.push(getLoginRedirectPath(pathname || `/posts/${post.id}`));
@@ -149,7 +202,17 @@ export default function PostMoreMenu({ post }) {
 
     setReasonCode("");
     setDescription("");
-    setReportOpen(true);
+    setReportModalOpen(true);
+    openConfirmModal({
+      title: "Report Post",
+      message: "Choose a reason for reporting this post.",
+      content: buildReportContent(),
+      confirmText: "Submit report",
+      cancelText: "Cancel",
+      confirmDisabled: true,
+      onClose: resetReportState,
+      onConfirm: () => reportMutation.mutateAsync()
+    });
   }
 
   function handleBlock() {
@@ -171,21 +234,11 @@ export default function PostMoreMenu({ post }) {
     });
   }
 
-  function handleCloseReportModal() {
-    if (reportMutation.isPending) {
-      return;
+  useEffect(() => {
+    if (!confirmModal.isOpen && reportModalOpen) {
+      resetReportState();
     }
-
-    setReportOpen(false);
-  }
-
-  function handleSubmitReport() {
-    if (!reasonCode || reportMutation.isPending || reported) {
-      return;
-    }
-
-    reportMutation.mutate();
-  }
+  }, [confirmModal.isOpen, reportModalOpen]);
 
   return (
     <div ref={containerRef} className="relative z-30">
@@ -246,41 +299,6 @@ export default function PostMoreMenu({ post }) {
           )}
         </div>
       ) : null}
-
-      <Modal isOpen={reportOpen} onClose={handleCloseReportModal} title="Report Post" size="sm">
-        <div className="space-y-4">
-          <p className="text-sm leading-6 text-[#ece7e2]">Choose a reason for reporting this post.</p>
-          <div className="grid gap-2">
-            {REPORT_REASONS.map((reason) => (
-              <button
-                key={reason.value}
-                type="button"
-                onClick={() => setReasonCode(reason.value)}
-                className={`rounded-xl border px-3 py-2 text-left text-sm transition ${
-                  reasonCode === reason.value
-                    ? "border-accent bg-accent/10 text-white"
-                    : "border-white/10 bg-[#111] text-[#ece7e2] hover:bg-white/5"
-                }`}
-              >
-                {reason.label}
-              </button>
-            ))}
-            <Input
-              placeholder="Optional details"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-          </div>
-          <div className="flex justify-end gap-3">
-            <Button variant="ghost" onClick={handleCloseReportModal} disabled={reportMutation.isPending}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmitReport} loading={reportMutation.isPending} disabled={!reasonCode || reported}>
-              {reported ? "Already reported" : "Submit report"}
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }
