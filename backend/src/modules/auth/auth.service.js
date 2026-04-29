@@ -530,6 +530,7 @@ async function forgotPassword(email) {
     const resetEmail = buildResetPasswordEmail({
       userName: user.usernameDisplay || user.username || "there",
       resetUrl: `${env.frontendOrigin}/auth/reset-password?email=${encodeURIComponent(normalizedEmail)}`,
+      resetCode: code,
       supportEmail: env.mail.from,
       expirationMinutes: RESET_CODE_MINUTES
     });
@@ -537,8 +538,8 @@ async function forgotPassword(email) {
     await sendMail({
       to: normalizedEmail,
       subject: resetEmail.subject,
-      text: `${resetEmail.text}\nYour reset code is: ${code}`,
-      html: `${resetEmail.html}<p style="margin:24px 60px 0 60px;font-size:16px;line-height:24px;color:#353534;text-align:center;"><strong>Your reset code:</strong> ${code}</p>`
+      text: resetEmail.text,
+      html: resetEmail.html
     });
     logInfo("Reset email queued", {
       email: maskEmail(normalizedEmail),

@@ -459,6 +459,17 @@ async function repostPost(userId, postId, payload) {
 
   await Post.updateOne({ id: postId }, { $inc: { "stats.repostCount": 1 } });
   await User.updateOne({ id: userId }, { $inc: { "stats.repostCount": 1 } });
+
+  if (post.authorId !== userId) {
+    await createNotification({
+      recipientId: post.authorId,
+      actorId: userId,
+      type: "repost",
+      entityType: "post",
+      entityId: postId,
+      message: payload.type === "quote_repost" ? "quoted your post" : "reposted your post"
+    });
+  }
   await notifyNewPostMentions({
     actorId: userId,
     postId: repostPost.id,
@@ -559,3 +570,5 @@ module.exports = {
   toggleBookmark,
   toggleReaction
 };
+
+

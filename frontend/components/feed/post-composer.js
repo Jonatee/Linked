@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Image as ImageIcon, List, MapPin, Smile } from "lucide-react";
+import { Image as ImageIcon } from "lucide-react";
 import api from "@/lib/api";
 import SquareAvatar from "@/components/branding/square-avatar";
 import { Textarea } from "@/components/ui/textarea";
@@ -159,15 +159,6 @@ export default function PostComposer({ variant = "inline" }) {
                 />
                 <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-md p-1.5 transition hover:bg-white/5 hover:text-[#ff5a5f]" aria-label="Add image or video">
                   <ImageIcon size={16} />
-                </button>
-                <button type="button" className="rounded-md p-1.5 transition hover:bg-white/5 hover:text-[#ff5a5f]" aria-label="Add emoji">
-                  <Smile size={16} />
-                </button>
-                <button type="button" className="rounded-md p-1.5 transition hover:bg-white/5 hover:text-[#ff5a5f]" aria-label="Add list">
-                  <List size={16} />
-                </button>
-                <button type="button" className="rounded-md p-1.5 transition hover:bg-white/5 hover:text-[#ff5a5f]" aria-label="Add location">
-                  <MapPin size={16} />
                 </button>
                 <span className="ml-2 text-xs text-muted">Up to 4 images or 1 video</span>
               </div>
