@@ -5,77 +5,94 @@ const Comment = require("../comments/comment.model");
 const Media = require("../media/media.model");
 const { sendToUser } = require("../../utils/fcm");
 
+function normalizeNotificationType(type = "") {
+  if (type === "like_post" || type === "like_comment") {
+    return "like";
+  }
+
+  return type;
+}
+
+function buildNotificationTitle({ type, entityType, displayName }) {
+  const normalizedType = normalizeNotificationType(type);
+
+  switch (normalizedType) {
+    case "like":
+      return `${displayName} liked your ${entityType === "comment" ? "comment" : "post"}`;
+    case "comment":
+      return `${displayName} commented on your post`;
+    case "reply":
+      return `${displayName} replied in your thread`;
+    case "follow":
+      return `${displayName} started following you`;
+    case "mention":
+      return `${displayName} mentioned you`;
+    case "repost":
+      return `${displayName} reposted your post`;
+    default:
+      return `${displayName} sent you a notification`;
+  }
+}
+
 async function createNotification({ recipientId, actorId = null, type, entityType = "", entityId = "", message = "" }) {
   const notification = await Notification.create({ recipientId, actorId, type, entityType, entityId, message });
 
-  // Get actor info for dynamic notification title and navigation data
+  const normalizedType = normalizeNotificationType(type);
   let notificationTitle = "New notification";
-  let notificationBody = message || type;
-  let navigationData = { type, entityType, entityId: entityId || "" };
-  
+  let notificationBody = message || normalizedType;
+  let navigationData = {
+    type: normalizedType,
+    rawType: type,
+    entityType,
+    entityId: entityId || ""
+  };
+
   if (actorId) {
     try {
       const actor = await User.findOne({ id: actorId, deletedAt: null }).lean();
       const profile = await Profile.findOne({ userId: actorId }).lean();
-      
+
       if (actor) {
         const displayName = profile?.displayName || actor.usernameDisplay || actor.username;
-        
-        switch (type) {
-          case "like":
-            notificationTitle = `${displayName} liked your post`;
-            break;
-          case "comment":
-            notificationTitle = `${displayName} commented on your post`;
-            break;
-          case "follow":
-            notificationTitle = `${displayName} started following you`;
-            break;
-          case "mention":
-            notificationTitle = `${displayName} mentioned you`;
-            break;
-          default:
-            notificationTitle = `${displayName} - ${type}`;
-        }
-        
-        // Add actor info to navigation data
+        notificationTitle = buildNotificationTitle({
+          type,
+          entityType,
+          displayName
+        });
+
         navigationData.actorId = actorId;
         navigationData.actorUsername = actor.username;
       }
     } catch (error) {
-      // Fallback to default title if user lookup fails
-      console.error('Failed to get actor info for notification:', error);
+      console.error("Failed to get actor info for notification:", error);
     }
   }
 
-  // Determine navigation route based on notification type and entity
-  let webUrl = "/notifications"; // default fallback
+  let webUrl = "/notifications";
 
   if (entityType === "post" && entityId) {
     webUrl = `/posts/${entityId}`;
   } else if (entityType === "comment" && entityId) {
-    // For comments, we need to get the post ID to navigate to the post
     try {
       const comment = await Comment.findOne({ id: entityId, deletedAt: null }).lean();
       if (comment?.postId) {
         webUrl = `/posts/${comment.postId}`;
       }
     } catch (error) {
-      console.error('Failed to get comment info for navigation:', error);
+      console.error("Failed to get comment info for navigation:", error);
     }
   } else if (entityType === "user" && navigationData.actorUsername) {
     webUrl = `/profile/${navigationData.actorUsername}`;
-  } else if (type === "follow" && navigationData.actorUsername) {
+  } else if (normalizedType === "follow" && navigationData.actorUsername) {
     webUrl = `/profile/${navigationData.actorUsername}`;
   }
 
-  // Add navigation info to FCM data
   navigationData.webUrl = webUrl;
-  navigationData.fullUrl = `${process.env.FRONTEND_ORIGIN || 'https://linked-theta.vercel.app'}${webUrl}`;
+  navigationData.fullUrl = `${process.env.FRONTEND_ORIGIN || "https://linked-theta.vercel.app"}${webUrl}`;
 
-  sendToUser(recipientId, { 
-    title: notificationTitle, 
-    body: notificationBody, 
+  sendToUser(recipientId, {
+    title: notificationTitle,
+    body: notificationBody,
     data: navigationData
   }).catch(() => {});
 
@@ -116,6 +133,7 @@ async function listNotifications(recipientId) {
     const actor = actors.find((user) => user.id === item.actorId) || null;
     const profile = profiles.find((entry) => entry.userId === item.actorId) || null;
     const comment = comments.find((entry) => entry.id === item.entityId) || null;
+    const normalizedType = normalizeNotificationType(item.type);
 
     let targetUrl = "/notifications";
     if (item.entityType === "post" && item.entityId) {
@@ -128,6 +146,8 @@ async function listNotifications(recipientId) {
 
     return {
       ...item,
+      type: normalizedType,
+      rawType: item.type,
       actor: actor
         ? {
             id: actor.id,

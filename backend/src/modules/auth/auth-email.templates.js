@@ -5,7 +5,7 @@ function escapeHtml(value = "") {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
+    .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
 
@@ -140,17 +140,18 @@ function buildWelcomeEmail({ userName, dashboardUrl, supportEmail }) {
   };
 }
 
-function buildResetPasswordEmail({ userName, resetUrl, supportEmail, expirationMinutes = 30 }) {
+function buildResetPasswordEmail({ userName, resetUrl, resetCode, supportEmail, expirationMinutes = 30 }) {
   const safeUserName = escapeHtml(userName);
   const safeResetUrl = escapeHtml(resetUrl);
+  const safeResetCode = escapeHtml(resetCode);
   const safeSupportEmail = escapeHtml(supportEmail);
   const safeExpiration = escapeHtml(expirationMinutes);
 
   return {
     subject: `Reset your ${PRODUCT_NAME} password`,
-    text: `Hello ${userName}, reset your ${PRODUCT_NAME} password here: ${resetUrl}`,
+    text: `Hello ${userName}, reset your ${PRODUCT_NAME} password here: ${resetUrl}\nUse this reset code: ${resetCode}`,
     html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.xhtml1.org/1999/xhtml">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -179,12 +180,26 @@ function buildResetPasswordEmail({ userName, resetUrl, supportEmail, expirationM
             <td style="padding:20px 60px 40px 60px;">
               <h1 style="margin:0 0 20px 0;font-size:24px;font-weight:700;color:#131313;text-align:center;">Reset your password</h1>
               <p style="margin:0 0 24px 0;font-size:16px;line-height:24px;color:#353534;text-align:center;">
-                Hello ${safeUserName}, we received a request to reset your ${PRODUCT_NAME} password. Click the button below to choose a new one.
+                Hello ${safeUserName}, we received a request to reset your ${PRODUCT_NAME} password. Use the code below in the app, or click the button to open the reset screen.
               </p>
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+                <tr>
+                  <td align="center">
+                    <p style="margin:0 0 10px 0;font-size:13px;color:#9b9b9b;text-transform:uppercase;letter-spacing:1px;">Reset code</p>
+                    <table border="0" cellpadding="0" cellspacing="0" bgcolor="#f9f9f9" style="border:1px solid #eeeeee;border-radius:4px;">
+                      <tr>
+                        <td align="center" style="padding:18px 32px;font-family:'Courier New',Courier,monospace;font-size:30px;font-weight:700;color:#111111;letter-spacing:10px;">
+                          ${safeResetCode}
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
               <table border="0" cellpadding="0" cellspacing="0" width="100%">
                 <tr>
                   <td align="center" style="padding:10px 0 30px 0;">
-                    <a href="${safeResetUrl}" target="_blank" style="background-color:#E02424;border:1px solid #E02424;border-radius:4px;color:#ffffff;display:inline-block;font-size:16px;font-weight:600;line-height:50px;text-align:center;text-decoration:none;width:220px;">Reset Password</a>
+                    <a href="${safeResetUrl}" target="_blank" style="background-color:#E02424;border:1px solid #E02424;border-radius:4px;color:#ffffff;display:inline-block;font-size:16px;font-weight:600;line-height:50px;text-align:center;text-decoration:none;width:220px;">Open Reset Page</a>
                   </td>
                 </tr>
               </table>
@@ -197,7 +212,7 @@ function buildResetPasswordEmail({ userName, resetUrl, supportEmail, expirationM
               <hr style="border:none;border-top:1px solid #f0f0f0;margin:30px 0;" />
               <p style="margin:0 0 10px 0;font-size:14px;line-height:22px;color:#353534;font-weight:600;">Important Security Information:</p>
               <ul style="margin:0;padding:0 0 0 20px;font-size:14px;line-height:22px;color:#353534;">
-                <li style="margin-bottom:8px;">This link will expire in ${safeExpiration} minutes.</li>
+                <li style="margin-bottom:8px;">This link and code will expire in ${safeExpiration} minutes.</li>
                 <li>If you did not request a password reset, you can safely ignore this email. Your account remains secure.</li>
               </ul>
             </td>
