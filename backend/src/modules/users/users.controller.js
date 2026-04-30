@@ -18,13 +18,13 @@ const updateSettings = asyncHandler(async (req, res) => {
 });
 
 const followers = asyncHandler(async (req, res) => {
-  const result = await usersService.listFollowers(req.params.username);
-  return sendSuccess(res, { message: "Followers loaded", data: result });
+  const result = await usersService.listFollowers(req.params.username, req.query);
+  return sendSuccess(res, { message: "Followers loaded", data: result.items, meta: result.pageInfo });
 });
 
 const following = asyncHandler(async (req, res) => {
-  const result = await usersService.listFollowing(req.params.username);
-  return sendSuccess(res, { message: "Following loaded", data: result });
+  const result = await usersService.listFollowing(req.params.username, req.query);
+  return sendSuccess(res, { message: "Following loaded", data: result.items, meta: result.pageInfo });
 });
 
 const posts = asyncHandler(async (req, res) => {

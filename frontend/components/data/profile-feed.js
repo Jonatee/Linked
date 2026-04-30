@@ -90,7 +90,8 @@ export default function ProfileFeed({ username }) {
       const isSelf = currentUser?.username && currentUser.username.toLowerCase() === user.user.username.toLowerCase();
       const viewerState = {
         ...(user.viewerState || {}),
-        isSelf: Boolean(user.viewerState?.isSelf || isSelf)
+        isSelf: Boolean(user.viewerState?.isSelf || isSelf),
+        postNotificationsEnabled: Boolean(user.viewerState?.postNotificationsEnabled)
       };
 
       return {
@@ -176,7 +177,8 @@ export default function ProfileFeed({ username }) {
             following: false,
             blockedByViewer: false,
             hasBlockedViewer: false,
-            canInteract: true
+            canInteract: true,
+            postNotificationsEnabled: false
           }
         }}
       />

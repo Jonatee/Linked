@@ -25,7 +25,8 @@ async function getRelationshipState(viewerId, targetUserId) {
       following: false,
       blockedByViewer: false,
       hasBlockedViewer: false,
-      canInteract: true
+      canInteract: true,
+      postNotificationsEnabled: false
     };
   }
 
@@ -35,7 +36,8 @@ async function getRelationshipState(viewerId, targetUserId) {
       following: false,
       blockedByViewer: false,
       hasBlockedViewer: false,
-      canInteract: true
+      canInteract: true,
+      postNotificationsEnabled: false
     };
   }
 
@@ -58,7 +60,8 @@ async function getRelationshipState(viewerId, targetUserId) {
     following: Boolean(followRecord),
     blockedByViewer,
     hasBlockedViewer,
-    canInteract: !blockedByViewer && !hasBlockedViewer
+    canInteract: !blockedByViewer && !hasBlockedViewer,
+    postNotificationsEnabled: Boolean(followRecord?.postNotifications)
   };
 }
 

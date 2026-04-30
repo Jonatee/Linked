@@ -5,7 +5,8 @@ const repostSchema = createBaseSchema({
   userId: { type: String, required: true, index: true },
   postId: { type: String, required: true, index: true },
   type: { type: String, enum: ["repost", "quote_repost"], required: true },
-  quoteText: { type: String, default: "" }
+  quoteText: { type: String, default: "" },
+  deletedAt: { type: Date, default: null }
 });
 
 repostSchema.index({ userId: 1, postId: 1, type: 1 }, { unique: true });

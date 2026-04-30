@@ -14,6 +14,7 @@ router.get("/:postId", optionalAuth, controller.getOne);
 router.patch("/:postId", requireAuth, writeRateLimiter, validate(validation.updatePostSchema), controller.update);
 router.delete("/:postId", requireAuth, interactionRateLimiter, controller.remove);
 router.post("/:postId/repost", requireAuth, interactionRateLimiter, validate(validation.repostSchema), controller.repost);
+router.delete("/:postId/repost", requireAuth, interactionRateLimiter, controller.removeRepost);
 router.post("/:postId/bookmark", requireAuth, interactionRateLimiter, controller.bookmark);
 router.delete("/:postId/bookmark", requireAuth, interactionRateLimiter, controller.unbookmark);
 router.post("/:postId/react", requireAuth, interactionRateLimiter, controller.react);

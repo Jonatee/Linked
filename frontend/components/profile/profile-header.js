@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Ban, X } from "lucide-react";
+import { Ban, Bell, BellOff, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
 import VerifiedBadge from "@/components/branding/verified-badge";
@@ -63,7 +64,19 @@ export default function ProfileHeader({ profile }) {
     }
   });
 
-  const busy = followMutation.isPending || blockMutation.isPending;
+  const postNotificationsMutation = useMutation({
+    mutationFn: async () => {
+      const suffix = profile.viewerState.postNotificationsEnabled ? "off" : "on";
+      await api.put(`/users/${profile.userId}/follow/post-notifications/${suffix}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile", profile.username] });
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+    }
+  });
+
+  const busy =
+    followMutation.isPending || blockMutation.isPending || postNotificationsMutation.isPending;
 
   function requireLogin() {
     router.push(getLoginRedirectPath(pathname || `/profile/${profile.username}`));
@@ -86,7 +99,7 @@ export default function ProfileHeader({ profile }) {
             src={profile.avatarUrl}
             alt={profile.displayName}
             onClick={profile.avatarUrl ? () => setShowAvatarPreview(true) : undefined}
-            className={profile.avatarUrl ? "transition hover:opacity-95" : ""}
+            className={profile.avatarUrl ? "cursor-pointer" : ""}
           />
           {profile.viewerState.isSelf ? (
             <Button variant="secondary" onClick={() => router.push("/profile/edit")}>
@@ -116,6 +129,29 @@ export default function ProfileHeader({ profile }) {
                 </Button>
               )}
 
+              {profile.viewerState.following ? (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    if (!currentUser) {
+                      requireLogin();
+                      return;
+                    }
+
+                    postNotificationsMutation.mutate();
+                  }}
+                  loading={postNotificationsMutation.isPending}
+                  disabled={busy || profile.viewerState.blockedByViewer}
+                >
+                  {profile.viewerState.postNotificationsEnabled ? (
+                    <Bell size={16} className="mr-2" />
+                  ) : (
+                    <BellOff size={16} className="mr-2" />
+                  )}
+                  {profile.viewerState.postNotificationsEnabled ? "Turn off post alerts" : "Turn on post alerts"}
+                </Button>
+              ) : null}
+
               <Button
                 variant="secondary"
                 onClick={() => {
@@ -142,12 +178,12 @@ export default function ProfileHeader({ profile }) {
           </div>
           <p className="mt-1 text-sm text-muted">@{profile.username}</p>
           <div className="mt-4 flex items-center gap-6 text-sm text-[#ece7e2]">
-            <div>
+            <Link href={`/profile/${profile.username}/following`} className="transition hover:text-white">
               <span className="font-bold text-white">{profile.followingCount}</span> Following
-            </div>
-            <div>
+            </Link>
+            <Link href={`/profile/${profile.username}/followers`} className="transition hover:text-white">
               <span className="font-bold text-white">{profile.followerCount}</span> Followers
-            </div>
+            </Link>
           </div>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-[#ece7e2]">{profile.bio}</p>
           {profile.viewerState.blockedByViewer ? (

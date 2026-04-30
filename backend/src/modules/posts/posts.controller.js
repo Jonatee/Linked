@@ -36,6 +36,10 @@ const repost = asyncHandler(async (req, res) => {
   const result = await postsService.repostPost(req.user.id, req.params.postId, req.body);
   return sendSuccess(res, { statusCode: 201, message: "Post reposted", data: result });
 });
+const removeRepost = asyncHandler(async (req, res) => {
+  const result = await postsService.deleteRepost(req.user.id, req.params.postId);
+  return sendSuccess(res, { statusCode: 200, message: "Post repost removed", data: result });
+});
 
 const bookmark = asyncHandler(async (req, res) => {
   const result = await postsService.toggleBookmark(req.user.id, req.params.postId, true);
@@ -67,6 +71,7 @@ module.exports = {
   repost,
   bookmark,
   unbookmark,
+  removeRepost,
   react,
   unreact
 };

@@ -26,6 +26,17 @@ function attachProfileMedia(profile, mediaItems = []) {
   };
 }
 
+function shuffleItems(items = []) {
+  const shuffled = [...items];
+
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+
+  return shuffled;
+}
+
 function buildAuthorPayload(author, profiles, mediaItems) {
   if (!author) {
     return null;
@@ -477,7 +488,39 @@ async function repostPost(userId, postId, payload) {
   });
   return repostPost;
 }
+async function deleteRepost(userId, postId) {
+  const deletedAt = new Date();
+  const repost = await Post.findOneAndUpdate(
+    {
+      authorId: userId,
+      originalPostId: postId,
+      type: { $in: ["repost", "quote_repost"] },
+      deletedAt: null
+    },
+    {
+      deletedAt,
+      status: "removed",
+      modifiedAt: deletedAt
+    },
+    { new: true }
+  );
 
+  if (!repost) {
+    throw new AppError("Repost not found or already deleted", 404);
+  }
+
+  await Promise.all([
+    Repost.deleteOne({ userId, postId, type: repost.type }),
+    Post.updateOne({ id: postId }, { $inc: { "stats.repostCount": -1 } }),
+    User.updateOne({ id: userId }, { $inc: { "stats.repostCount": -1, "stats.postCount": -1 } })
+  ]);
+
+  return {
+    success: true,
+    deleted: true,
+    repostId: repost.id
+  };
+}
 async function toggleBookmark(userId, postId, shouldBookmark) {
   const post = await Post.findOne({ id: postId, deletedAt: null }).lean();
   if (!post) {
@@ -567,6 +610,7 @@ module.exports = {
   updatePost,
   deletePost,
   repostPost,
+  deleteRepost,
   toggleBookmark,
   toggleReaction
 };

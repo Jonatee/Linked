@@ -51,13 +51,31 @@ async function unfollowUser(followerId, followingId) {
 }
 
 async function enablePostNotifications(followerId, followingId) {
-  await Follow.updateOne({ followerId, followingId }, { postNotifications: true });
-  return { success: true };
+  const follow = await Follow.findOneAndUpdate(
+    { followerId, followingId, status: { $in: ["active", "accepted"] } },
+    { postNotifications: true },
+    { new: true }
+  );
+
+  if (!follow) {
+    throw new AppError("Follow relationship not found", 404);
+  }
+
+  return { success: true, postNotifications: true };
 }
 
 async function disablePostNotifications(followerId, followingId) {
-  await Follow.updateOne({ followerId, followingId }, { postNotifications: false });
-  return { success: true };
+  const follow = await Follow.findOneAndUpdate(
+    { followerId, followingId, status: { $in: ["active", "accepted"] } },
+    { postNotifications: false },
+    { new: true }
+  );
+
+  if (!follow) {
+    throw new AppError("Follow relationship not found", 404);
+  }
+
+  return { success: true, postNotifications: false };
 }
 
 module.exports = {

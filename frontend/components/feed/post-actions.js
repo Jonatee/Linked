@@ -43,7 +43,7 @@ export default function PostActions({ post }) {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.currentUser);
   const targetPostId = post.actionPostId || post.id;
-  const canInteract = post.viewerState.canInteract;
+  const canInteract = post.viewerState?.canInteract ?? post.viewerState?.relationship?.canInteract ?? true;
   const [liked, setLiked] = useState(Boolean(post.viewerState?.liked));
   const [bookmarked, setBookmarked] = useState(Boolean(post.viewerState?.bookmarked));
   const [reposted, setReposted] = useState(Boolean(post.viewerState?.reposted));
@@ -106,10 +106,17 @@ export default function PostActions({ post }) {
     },
     onSuccess: invalidateAll
   });
+  
+  const removeRepostMutation = useMutation({
+    mutationFn: async () => {
+      await api.delete(`/posts/${targetPostId}/repost`);
+    },
+    onSuccess: invalidateAll
+  });
 
   const actionsDisabled = useMemo(
-    () => !canInteract || likeMutation.isPending || bookmarkMutation.isPending || repostMutation.isPending,
-    [bookmarkMutation.isPending, canInteract, likeMutation.isPending, repostMutation.isPending]
+    () => !canInteract || likeMutation.isPending || bookmarkMutation.isPending || repostMutation.isPending || removeRepostMutation.isPending,
+    [bookmarkMutation.isPending, canInteract, likeMutation.isPending, repostMutation.isPending, removeRepostMutation.isPending]
   );
 
   function requireLogin() {
@@ -187,6 +194,29 @@ export default function PostActions({ post }) {
     });
   }
 
+  function handleRemoveRepost() {
+    if (!currentUser) {
+      requireLogin();
+      return;
+    }
+    if (actionsDisabled || !reposted) return;
+
+    setReposted(false);
+    setCounts((current) => ({
+      ...current,
+      repostCount: Math.max(0, current.repostCount - 1)
+    }));
+    removeRepostMutation.mutate(undefined, {
+      onError: () => {
+        setReposted(true);
+        setCounts((current) => ({
+          ...current,
+          repostCount: current.repostCount + 1
+        }));
+      }
+    });
+  }
+
   async function handleShare() {
     const origin =
       (typeof window !== "undefined" && window.location?.origin) ||
@@ -223,7 +253,7 @@ export default function PostActions({ post }) {
         count={counts.repostCount}
         active={reposted}
         ariaLabel="Repost"
-        onClick={handleRepost}
+        onClick={reposted ? handleRemoveRepost : handleRepost}
         disabled={actionsDisabled}
       />
       <ActionControl

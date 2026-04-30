@@ -57,14 +57,102 @@ async function updateSettings(userId, payload) {
   );
 }
 
-async function listFollowers(username) {
-  const { user } = await getUserByUsername(username);
-  return Follow.find({ followingId: user.id, status: { $in: ["active", "accepted"] } }).lean();
+async function enrichRelationshipUsers(userIds = []) {
+  const uniqueIds = [...new Set((userIds || []).filter(Boolean))];
+
+  if (!uniqueIds.length) {
+    return new Map();
+  }
+
+  const [users, profiles] = await Promise.all([
+    User.find({ id: { $in: uniqueIds }, deletedAt: null }).lean(),
+    Profile.find({ userId: { $in: uniqueIds } }).lean()
+  ]);
+
+  const mediaIds = [...new Set(profiles.flatMap((profile) => [profile.avatarMediaId, profile.bannerMediaId]).filter(Boolean))];
+  const mediaItems = mediaIds.length ? await Media.find({ id: { $in: mediaIds }, deletedAt: null }).lean() : [];
+
+  const mediaMap = new Map(mediaItems.map((item) => [item.id, item]));
+  const profileMap = new Map(
+    profiles.map((profile) => [
+      profile.userId,
+      {
+        ...profile,
+        avatarMedia: profile.avatarMediaId ? mediaMap.get(profile.avatarMediaId) || null : null,
+        bannerMedia: profile.bannerMediaId ? mediaMap.get(profile.bannerMediaId) || null : null
+      }
+    ])
+  );
+
+  return new Map(
+    users.map((user) => [
+      user.id,
+      {
+        ...user,
+        profile: profileMap.get(user.id) || null
+      }
+    ])
+  );
 }
 
-async function listFollowing(username) {
+async function listRelationships(username, query = {}, type = "followers") {
   const { user } = await getUserByUsername(username);
-  return Follow.find({ followerId: user.id, status: { $in: ["active", "accepted"] } }).lean();
+  const limit = Math.min(Math.max(Number(query.limit || 20), 1), 50);
+  const cursor = query.cursor ? new Date(query.cursor) : null;
+  const baseFilter =
+    type === "followers"
+      ? { followingId: user.id, status: { $in: ["active", "accepted"] } }
+      : { followerId: user.id, status: { $in: ["active", "accepted"] } };
+
+  const relationshipDocs = await Follow.find({
+    ...baseFilter,
+    ...(cursor && !Number.isNaN(cursor.getTime()) ? { createdAt: { $lt: cursor } } : {})
+  })
+    .sort({ createdAt: -1 })
+    .limit(limit + 1)
+    .lean();
+
+  const hasMore = relationshipDocs.length > limit;
+  const pageDocs = hasMore ? relationshipDocs.slice(0, limit) : relationshipDocs;
+  const relatedUserIds = pageDocs.map((item) => (type === "followers" ? item.followerId : item.followingId));
+  const usersMap = await enrichRelationshipUsers(relatedUserIds);
+
+  const items = pageDocs
+    .map((item) => {
+      const relatedUserId = type === "followers" ? item.followerId : item.followingId;
+      const relatedUser = usersMap.get(relatedUserId);
+
+      if (!relatedUser) {
+        return null;
+      }
+
+      return {
+        id: relatedUser.id,
+        username: relatedUser.username,
+        usernameDisplay: relatedUser.usernameDisplay,
+        isVerified: relatedUser.isVerified,
+        profile: relatedUser.profile,
+        followedAt: item.createdAt,
+        postNotificationsEnabled: type === "following" ? Boolean(item.postNotifications) : false
+      };
+    })
+    .filter(Boolean);
+
+  return {
+    items,
+    pageInfo: {
+      nextCursor: hasMore ? pageDocs[pageDocs.length - 1]?.createdAt || null : null,
+      hasMore
+    }
+  };
+}
+
+async function listFollowers(username, query = {}) {
+  return listRelationships(username, query, "followers");
+}
+
+async function listFollowing(username, query = {}) {
+  return listRelationships(username, query, "following");
 }
 
 async function listUserPosts(username, query, viewerId = null) {

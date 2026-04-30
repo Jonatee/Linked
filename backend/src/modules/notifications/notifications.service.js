@@ -13,6 +13,14 @@ function normalizeNotificationType(type = "") {
   return type;
 }
 
+function shouldDeduplicateNotification({ type, actorId, entityType, entityId }) {
+  if (!actorId || !entityType || !entityId) {
+    return false;
+  }
+
+  return ["follow", "like_post", "like_comment", "repost"].includes(type);
+}
+
 function buildNotificationTitle({ type, entityType, displayName }) {
   const normalizedType = normalizeNotificationType(type);
 
@@ -29,12 +37,23 @@ function buildNotificationTitle({ type, entityType, displayName }) {
       return `${displayName} mentioned you`;
     case "repost":
       return `${displayName} reposted your post`;
+    case "new_post":
+      return `${displayName} made a new post`;
     default:
       return `${displayName} sent you a notification`;
   }
 }
 
 async function createNotification({ recipientId, actorId = null, type, entityType = "", entityId = "", message = "" }) {
+  const shouldDeduplicate = shouldDeduplicateNotification({ type, actorId, entityType, entityId });
+
+  if (shouldDeduplicate) {
+    const existingNotification = await Notification.findOne({ recipientId, actorId, type, entityType, entityId }).lean();
+    if (existingNotification) {
+      return existingNotification;
+    }
+  }
+
   const notification = await Notification.create({ recipientId, actorId, type, entityType, entityId, message });
 
   const normalizedType = normalizeNotificationType(type);
