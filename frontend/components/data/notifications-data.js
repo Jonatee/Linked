@@ -26,6 +26,7 @@ export default function NotificationsData() {
     <NotificationList
       items={(data || []).map((item) => ({
         id: item.id,
+        type: item.rawType || item.type,
         actor: {
           name:
             item.actor?.profile?.displayName ||

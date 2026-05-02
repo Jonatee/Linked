@@ -226,11 +226,7 @@ export default function PostActions({ post }) {
 
     try {
       if (typeof navigator !== "undefined" && navigator.share) {
-        await navigator.share({
-          title: "LInked post",
-          text: post.content || post.quoteText || "Check out this post on LInked",
-          url
-        });
+        await navigator.share({ url });
       } else if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
       }
