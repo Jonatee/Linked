@@ -83,7 +83,8 @@ export function formatPost(post) {
           viewerState: {
             liked: Boolean(original.viewerState?.liked),
             bookmarked: Boolean(original.viewerState?.bookmarked),
-            reposted: Boolean(original.viewerState?.reposted)
+            reposted: Boolean(original.viewerState?.reposted),
+            repostType: original.viewerState?.repostType || null
           }
         }
       : null,
@@ -92,6 +93,7 @@ export function formatPost(post) {
       liked: Boolean(engagementSource.viewerState?.liked),
       bookmarked: Boolean(engagementSource.viewerState?.bookmarked),
       reposted: Boolean(engagementSource.viewerState?.reposted),
+      repostType: engagementSource.viewerState?.repostType || null,
       isOwner: Boolean(relationship.isSelf),
       followingAuthor: Boolean(relationship.following),
       blockedByViewer: Boolean(relationship.blockedByViewer),

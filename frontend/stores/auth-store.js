@@ -24,6 +24,10 @@ const useAuthStore = create((set) => ({
     if (typeof window !== "undefined") {
       window.localStorage.removeItem("linked_access_token");
       window.sessionStorage.removeItem("linked_session_check_attempts");
+
+      if (window.FlutterBridge) {
+        window.FlutterBridge.postMessage("");
+      }
     }
 
     set({

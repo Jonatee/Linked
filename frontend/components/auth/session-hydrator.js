@@ -22,7 +22,6 @@ export default function SessionHydrator() {
       }
 
       if (!canAttemptSessionCheck()) {
-        clearSession();
         return;
       }
 
@@ -46,7 +45,10 @@ export default function SessionHydrator() {
           return;
         }
 
-        clearSession();
+        const status = error?.response?.status;
+        if (status === 401 || status === 403) {
+          clearSession();
+        }
       }
     }
 

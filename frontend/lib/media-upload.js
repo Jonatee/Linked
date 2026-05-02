@@ -1,11 +1,13 @@
+import axios from "axios";
 import api from "@/lib/api";
 
 function getResourceType(file) {
   return file.type.startsWith("video/") ? "video" : "image";
 }
 
-export async function uploadMediaFile(file, attachedEntityType = "post") {
+export async function uploadMediaFile(file, attachedEntityType = "post", options = {}) {
   const type = getResourceType(file);
+  const onProgress = typeof options.onProgress === "function" ? options.onProgress : null;
   const signResponse = await api.post("/media/sign-upload", {
     type,
     attachedEntityType
@@ -19,33 +21,25 @@ export async function uploadMediaFile(file, attachedEntityType = "post") {
   uploadFormData.append("folder", folder);
   uploadFormData.append("signature", signature);
 
-  const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${type}/upload`, {
-    method: "POST",
-    body: uploadFormData
-  });
+  const uploadResponse = await axios.post(
+    `https://api.cloudinary.com/v1_1/${cloudName}/${type}/upload`,
+    uploadFormData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      },
+      onUploadProgress: (event) => {
+        if (!onProgress || !event.total) {
+          return;
+        }
 
-  if (!uploadResponse.ok) {
-    let detail = "";
-
-    try {
-      const errorPayload = await uploadResponse.json();
-      detail = errorPayload?.error?.message || JSON.stringify(errorPayload);
-    } catch (error) {
-      try {
-        detail = await uploadResponse.text();
-      } catch (innerError) {
-        detail = "";
+        const percent = Math.min(100, Math.max(1, Math.round((event.loaded / event.total) * 100)));
+        onProgress(percent);
       }
     }
+  );
 
-    throw new Error(
-      detail
-        ? `Cloudinary upload failed (${uploadResponse.status}): ${detail}`
-        : `Cloudinary upload failed (${uploadResponse.status})`
-    );
-  }
-
-  const uploaded = await uploadResponse.json();
+  const uploaded = uploadResponse.data;
   const confirmResponse = await api.post("/media/confirm-upload", {
     type,
     publicId: uploaded.public_id,
@@ -62,6 +56,10 @@ export async function uploadMediaFile(file, attachedEntityType = "post") {
     attachedEntityId: null,
     altText: file.name
   });
+
+  if (onProgress) {
+    onProgress(100);
+  }
 
   return confirmResponse.data.data;
 }

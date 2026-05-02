@@ -1,21 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, LogOut, User } from "lucide-react";
+import { ArrowLeft, BellRing, LogOut, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import SquareAvatar from "@/components/branding/square-avatar";
 import api from "@/lib/api";
 import { getLoginRedirectPath } from "@/lib/auth-redirect";
 import useAuthStore from "@/stores/auth-store";
-import useUiStore from "@/stores/ui-store";
 
 export default function MobileSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const currentUser = useAuthStore((state) => state.currentUser);
   const clearSession = useAuthStore((state) => state.clearSession);
-  const openComposer = useUiStore((state) => state.openComposer);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const isSignedIn = Boolean(currentUser);
@@ -24,6 +23,19 @@ export default function MobileSidebar() {
   const initials = (displayName || "LI").slice(0, 2).toUpperCase();
   const isFeedPage = pathname === "/home" || pathname === "/";
   const isOnOwnProfile = isSignedIn && pathname?.startsWith(`/profile/${username}`);
+
+  const notificationsQuery = useQuery({
+    queryKey: ["notifications"],
+    queryFn: async () => {
+      const response = await api.get("/notifications");
+      return response.data.data;
+    },
+    enabled: Boolean(currentUser)
+  });
+
+  const unreadCount = (notificationsQuery.data || []).filter((item) => !item.isRead).length;
+  const notificationsHref = isSignedIn ? "/notifications" : getLoginRedirectPath("/notifications");
+  const notificationsActive = pathname === "/notifications" || pathname?.startsWith("/notifications");
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -46,14 +58,6 @@ export default function MobileSidebar() {
       document.removeEventListener("keydown", handleEscape);
     };
   }, []);
-
-  function handleComposerOpen() {
-    if (!isSignedIn) {
-      router.push(getLoginRedirectPath("/home"));
-      return;
-    }
-    openComposer();
-  }
 
   function handleBack() {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -144,14 +148,24 @@ export default function MobileSidebar() {
           LInked
         </Link>
 
-        <button
-          type="button"
-          onClick={handleComposerOpen}
-          className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white transition hover:bg-accent/90"
+        <Link
+          href={notificationsHref}
+          aria-label="Notifications"
+          className={`relative flex h-11 min-w-11 items-center justify-center rounded-xl border px-3 transition ${
+            notificationsActive
+              ? "border-accent bg-accent/10 text-accent"
+              : "border-white/10 bg-[#191717] text-white hover:border-white/20"
+          }`}
         >
-          <span className="inline-flex h-4 w-4 items-center justify-center text-[14px] leading-none">+</span>
-          Post
-        </button>
+          <div className="relative">
+            <BellRing size={18} />
+            {unreadCount > 0 && (
+              <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-0.5 text-[9px] font-black text-white">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </div>
+        </Link>
       </div>
     </div>
   );

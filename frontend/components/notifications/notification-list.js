@@ -28,8 +28,9 @@ function getNotificationIcon(type) {
     case "reply":
       return MessageCircle;
     case "repost":
-    case "new_post":
       return Repeat2;
+    case "new_post":
+      return Bell;
     case "mention":
       return AtSign;
     default:

@@ -13,6 +13,34 @@ import { Button } from "@/components/ui/button";
 import { resetSessionCheckAttempts } from "@/lib/session-check";
 import { getPostAuthRedirectPath } from "@/lib/auth-redirect";
 
+function getSafeAuthErrorMessage(error) {
+  const status = error?.response?.status;
+  const details = error?.response?.data?.error || null;
+  const rawMessage = error?.response?.data?.message || "";
+
+  if (details?.code === "email_not_verified") {
+    return "Please verify your email before logging in.";
+  }
+
+  if (status === 400 || status === 401) {
+    return "Invalid email, username, or password.";
+  }
+
+  if (status === 403) {
+    return "You do not have access to log in right now.";
+  }
+
+  if (status === 429) {
+    return "Too many login attempts. Please wait a bit and try again.";
+  }
+
+  if (!status || /ENOTFOUND|ECONNREFUSED|ECONNRESET|Mongo|mongodb|network|timeout|getaddrinfo/i.test(rawMessage)) {
+    return "We couldn't reach the server right now. Please try again shortly.";
+  }
+
+  return "Login failed. Please try again.";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const setSession = useAuthStore((state) => state.setSession);
@@ -49,17 +77,14 @@ export default function LoginPage() {
         user
       });
 
-      // Add this line for FCM notifications
       if (typeof window !== "undefined" && window.FlutterBridge) {
         window.FlutterBridge.postMessage(accessToken);
       }
 
       router.push(nextPath || getPostAuthRedirectPath(user));
     } catch (error) {
-      const message = error.response?.data?.message || "Login failed";
       const details = error.response?.data?.error || null;
-
-      setSubmitError(message);
+      setSubmitError(getSafeAuthErrorMessage(error));
 
       if (details?.code === "email_not_verified" && details?.email) {
         router.push(`/auth/verify-email?email=${encodeURIComponent(details.email)}`);

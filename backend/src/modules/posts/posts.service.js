@@ -97,40 +97,46 @@ async function enrichPosts(posts, viewerId = null) {
     viewerId ? Repost.find({ userId: viewerId, postId: { $in: targetIds } }).lean() : []
   ]);
 
-  return visiblePosts.map((post) => ({
-    ...post,
-    author: buildAuthorPayload(authors.find((author) => author.id === post.authorId) || null, profiles, mediaItems),
-    media: mediaItems.filter((item) => (post.mediaIds || []).includes(item.id)),
-    originalPost:
-      originalPosts.find((item) => item.id === post.originalPostId) && {
-        ...originalPosts.find((item) => item.id === post.originalPostId),
-        author: buildAuthorPayload(
-          authors.find((author) => author.id === originalPosts.find((item) => item.id === post.originalPostId)?.authorId) || null,
-          profiles,
-          mediaItems
-        ),
-        media: mediaItems.filter((item) =>
-          (originalPosts.find((entry) => entry.id === post.originalPostId)?.mediaIds || []).includes(item.id)
-        ),
-        viewerState: {
-          liked: reactions.some((reaction) => reaction.targetId === post.originalPostId),
-          bookmarked: bookmarks.some((bookmark) => bookmark.postId === post.originalPostId),
-          reposted: reposts.some((repost) => repost.postId === post.originalPostId)
+  return visiblePosts.map((post) => {
+    const originalPost = originalPosts.find((item) => item.id === post.originalPostId) || null;
+    const originalViewerRepost = reposts.find((repost) => repost.postId === post.originalPostId) || null;
+    const viewerRepost = reposts.find((repost) => repost.postId === post.id) || null;
+
+    return {
+      ...post,
+      author: buildAuthorPayload(authors.find((author) => author.id === post.authorId) || null, profiles, mediaItems),
+      media: mediaItems.filter((item) => (post.mediaIds || []).includes(item.id)),
+      originalPost:
+        originalPost && {
+          ...originalPost,
+          author: buildAuthorPayload(
+            authors.find((author) => author.id === originalPost.authorId) || null,
+            profiles,
+            mediaItems
+          ),
+          media: mediaItems.filter((item) => (originalPost.mediaIds || []).includes(item.id)),
+          viewerState: {
+            liked: reactions.some((reaction) => reaction.targetId === post.originalPostId),
+            bookmarked: bookmarks.some((bookmark) => bookmark.postId === post.originalPostId),
+            reposted: Boolean(originalViewerRepost),
+            repostType: originalViewerRepost?.type || null
+          }
+        },
+      viewerState: {
+        liked: reactions.some((reaction) => reaction.targetId === post.id),
+        bookmarked: bookmarks.some((bookmark) => bookmark.postId === post.id),
+        reposted: Boolean(viewerRepost),
+        repostType: viewerRepost?.type || null,
+        relationship: relationshipMap.get(post.authorId) || {
+          isSelf: false,
+          following: false,
+          blockedByViewer: false,
+          hasBlockedViewer: false,
+          canInteract: true
         }
-      },
-    viewerState: {
-      liked: reactions.some((reaction) => reaction.targetId === post.id),
-      bookmarked: bookmarks.some((bookmark) => bookmark.postId === post.id),
-      reposted: reposts.some((repost) => repost.postId === post.id),
-      relationship: relationshipMap.get(post.authorId) || {
-        isSelf: false,
-        following: false,
-        blockedByViewer: false,
-        hasBlockedViewer: false,
-        canInteract: true
       }
-    }
-  }));
+    };
+  });
 }
 
 async function hydrateMentionIds(content) {
@@ -436,89 +442,135 @@ async function repostPost(userId, postId, payload) {
 
   await blockingService.assertCanInteract(userId, post.authorId, "You cannot repost this post");
 
-  const existing = await Repost.findOne({ userId, postId, type: payload.type }).lean();
-  if (existing) {
-    const existingRepostPost = await Post.findOne({
-      authorId: userId,
-      originalPostId: postId,
-      type: payload.type,
-      deletedAt: null
-    }).lean();
+  const nextQuoteText = payload.type === "quote_repost" ? payload.quoteText || "" : "";
+  const hashtags = extractHashtags(nextQuoteText);
+  const mentionUserIds = await hydrateMentionIds(nextQuoteText);
+  const existingReposts = await Repost.find({ userId, postId }).lean();
+  const existingRepostPosts = await Post.find({
+    authorId: userId,
+    originalPostId: postId,
+    type: { $in: ["repost", "quote_repost"] },
+    deletedAt: null
+  }).lean();
+  const matchingPost = existingRepostPosts.find((item) => item.type === payload.type) || null;
 
-    return existingRepostPost || existing;
+  if (matchingPost) {
+    return matchingPost;
   }
 
-  await Repost.create({
-    userId,
-    postId,
-    type: payload.type,
-    quoteText: payload.quoteText || ""
-  });
+  const reusablePost = existingRepostPosts[0] || null;
+  const reusableRepost = existingReposts[0] || null;
+  const previousMentionUserIds = reusablePost?.mentionUserIds || [];
 
-  const repostPost = await Post.create({
-    authorId: userId,
-    type: payload.type,
-    visibility: "public",
-    content: payload.type === "quote_repost" ? payload.quoteText || "" : "",
-    plainTextContent: (payload.type === "quote_repost" ? payload.quoteText || "" : "").toLowerCase(),
-    hashtags: extractHashtags(payload.quoteText || ""),
-    mentionUserIds: await hydrateMentionIds(payload.quoteText || ""),
-    mediaIds: [],
-    originalPostId: postId,
-    quoteText: payload.type === "quote_repost" ? payload.quoteText || "" : ""
-  });
+  if (existingReposts.length > 1 && reusableRepost) {
+    await Repost.deleteMany({ userId, postId, id: { $nin: [reusableRepost.id] } });
+  }
 
-  await Post.updateOne({ id: postId }, { $inc: { "stats.repostCount": 1 } });
-  await User.updateOne({ id: userId }, { $inc: { "stats.repostCount": 1 } });
+  if (existingRepostPosts.length > 1) {
+    const duplicateIds = existingRepostPosts.slice(1).map((item) => item.id);
+    if (duplicateIds.length) {
+      await Post.updateMany(
+        { id: { $in: duplicateIds } },
+        { deletedAt: new Date(), status: "removed", modifiedAt: new Date() }
+      );
+    }
+  }
 
-  if (post.authorId !== userId) {
-    await createNotification({
-      recipientId: post.authorId,
-      actorId: userId,
-      type: "repost",
-      entityType: "post",
-      entityId: postId,
-      message: payload.type === "quote_repost" ? "quoted your post" : "reposted your post"
+  if (reusableRepost) {
+    await Repost.updateOne(
+      { id: reusableRepost.id },
+      { type: payload.type, quoteText: nextQuoteText, modifiedAt: new Date() }
+    );
+  } else {
+    await Repost.create({
+      userId,
+      postId,
+      type: payload.type,
+      quoteText: nextQuoteText
     });
   }
+
+  let repostPost;
+  if (reusablePost) {
+    await Post.updateOne(
+      { id: reusablePost.id },
+      {
+        type: payload.type,
+        content: nextQuoteText,
+        plainTextContent: nextQuoteText.toLowerCase(),
+        hashtags,
+        mentionUserIds,
+        quoteText: nextQuoteText,
+        modifiedAt: new Date()
+      }
+    );
+    repostPost = await Post.findOne({ id: reusablePost.id, deletedAt: null }).lean();
+  } else {
+    repostPost = await Post.create({
+      authorId: userId,
+      type: payload.type,
+      visibility: "public",
+      content: nextQuoteText,
+      plainTextContent: nextQuoteText.toLowerCase(),
+      hashtags,
+      mentionUserIds,
+      mediaIds: [],
+      originalPostId: postId,
+      quoteText: nextQuoteText
+    });
+
+    await Post.updateOne({ id: postId }, { $inc: { "stats.repostCount": 1 } });
+    await User.updateOne({ id: userId }, { $inc: { "stats.repostCount": 1, "stats.postCount": 1 } });
+
+    if (post.authorId !== userId) {
+      await createNotification({
+        recipientId: post.authorId,
+        actorId: userId,
+        type: "repost",
+        entityType: "post",
+        entityId: postId,
+        message: payload.type === "quote_repost" ? "quoted your post" : "reposted your post"
+      });
+    }
+  }
+
   await notifyNewPostMentions({
     actorId: userId,
     postId: repostPost.id,
-    mentionUserIds: repostPost.mentionUserIds || []
+    mentionUserIds,
+    previousMentionUserIds
   });
+
   return repostPost;
 }
 async function deleteRepost(userId, postId) {
   const deletedAt = new Date();
-  const repost = await Post.findOneAndUpdate(
-    {
-      authorId: userId,
-      originalPostId: postId,
-      type: { $in: ["repost", "quote_repost"] },
-      deletedAt: null
-    },
-    {
-      deletedAt,
-      status: "removed",
-      modifiedAt: deletedAt
-    },
-    { new: true }
-  );
+  const repostPosts = await Post.find({
+    authorId: userId,
+    originalPostId: postId,
+    type: { $in: ["repost", "quote_repost"] },
+    deletedAt: null
+  }).lean();
 
-  if (!repost) {
+  if (!repostPosts.length) {
     throw new AppError("Repost not found or already deleted", 404);
   }
 
   await Promise.all([
-    Repost.deleteOne({ userId, postId, type: repost.type }),
-    Post.updateOne({ id: postId }, { $inc: { "stats.repostCount": -1 } }),
-    User.updateOne({ id: userId }, { $inc: { "stats.repostCount": -1, "stats.postCount": -1 } })
+    Post.updateMany(
+      { id: { $in: repostPosts.map((item) => item.id) } },
+      { deletedAt, status: "removed", modifiedAt: deletedAt }
+    ),
+    Repost.deleteMany({ userId, postId }),
+    Post.updateOne({ id: postId }, { $inc: { "stats.repostCount": -repostPosts.length } }),
+    User.updateOne({ id: userId }, { $inc: { "stats.repostCount": -repostPosts.length, "stats.postCount": -repostPosts.length } })
   ]);
 
   return {
     success: true,
     deleted: true,
-    repostId: repost.id
+    deletedCount: repostPosts.length,
+    repostId: repostPosts[0].id
   };
 }
 async function toggleBookmark(userId, postId, shouldBookmark) {

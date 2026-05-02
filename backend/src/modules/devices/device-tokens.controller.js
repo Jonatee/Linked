@@ -7,6 +7,7 @@ const register = asyncHandler(async (req, res) => {
   const { token, platform = "android" } = req.body;
   if (!token) throw new AppError("token is required", 400);
 
+  await DeviceToken.deleteMany({ token, userId: { $ne: req.user.id } });
   await DeviceToken.findOneAndUpdate(
     { userId: req.user.id, token },
     { userId: req.user.id, token, platform },

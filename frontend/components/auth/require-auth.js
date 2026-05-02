@@ -17,7 +17,7 @@ export default function RequireAuth({ children, enabled = true }) {
     let mounted = true;
 
     async function checkSession() {
-      const token = window.localStorage.getItem("linked_access_token");
+      const token = typeof window !== "undefined" ? window.localStorage.getItem("linked_access_token") : null;
 
       if (!enabled) {
         setReady(true);
@@ -36,8 +36,7 @@ export default function RequireAuth({ children, enabled = true }) {
       }
 
       if (!canAttemptSessionCheck()) {
-        clearSession();
-        router.replace("/auth/login");
+        setReady(true);
         return;
       }
 
@@ -62,8 +61,14 @@ export default function RequireAuth({ children, enabled = true }) {
           return;
         }
 
-        clearSession();
-        router.replace("/auth/login");
+        const status = error?.response?.status;
+        if (status === 401 || status === 403) {
+          clearSession();
+          router.replace("/auth/login");
+          return;
+        }
+
+        setReady(true);
       }
     }
 
@@ -74,11 +79,8 @@ export default function RequireAuth({ children, enabled = true }) {
     };
   }, [clearSession, currentUser, enabled, router, setSession]);
 
-  // Show children immediately, let session check happen in background
-  // Only redirect if auth is required and we definitively know user is not authenticated
   if (enabled && !ready && !currentUser) {
-    // Return null to show nothing while checking, or return children to show content immediately
-    return children; // Show content immediately, auth check happens in background
+    return children;
   }
 
   return children;
