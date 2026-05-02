@@ -5,7 +5,7 @@ import BackButton from "@/components/navigation/back-button";
 export default function BookmarksPage() {
   return (
     <AppShell>
-      <BackButton />
+      <BackButton className="hidden lg:inline-flex" />
       <BookmarksView />
     </AppShell>
   );

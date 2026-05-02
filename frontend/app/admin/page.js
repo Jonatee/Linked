@@ -7,7 +7,7 @@ export default function AdminPage() {
   return (
     <AppShell rightSidebar={false}>
       <RequireRole roles={["admin"]} fallbackPath="/home">
-        <BackButton />
+        <BackButton className="hidden lg:inline-flex" />
         <AdminOverview />
       </RequireRole>
     </AppShell>

@@ -113,9 +113,6 @@ export default function RelationshipList({ username, type = "followers" }) {
               {user.profile?.bio ? (
                 <p className="mt-3 line-clamp-2 text-sm leading-6 text-[#ece7e2]">{user.profile.bio}</p>
               ) : null}
-              {type === "following" && user.postNotificationsEnabled ? (
-                <div className="mt-3 text-[11px] uppercase tracking-[0.16em] text-accent">Post alerts on</div>
-              ) : null}
             </div>
           </div>
         </Link>

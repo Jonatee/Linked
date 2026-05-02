@@ -7,7 +7,7 @@ export default async function ProfilePage({ params }) {
 
   return (
     <AppShell requireAuth={false}>
-      <BackButton />
+      <BackButton className="hidden lg:inline-flex" />
       <ProfileFeed username={username} />
     </AppShell>
   );

@@ -9,7 +9,7 @@ export default async function PostDetailPage({ params }) {
     <AppShell requireAuth={false}>
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <BackButton fallback="/home" />
+          <BackButton fallback="/home" className="hidden lg:inline-flex" />
           <h1 className="editorial-title text-2xl font-black text-white">Post</h1>
         </div>
         <PostDetailData postId={postId} />

@@ -9,7 +9,7 @@ export default async function SearchPage({ searchParams }) {
 
   return (
     <AppShell>
-      <BackButton />
+      <BackButton className="hidden lg:inline-flex" />
       <section className="panel p-6">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/15 text-accent">

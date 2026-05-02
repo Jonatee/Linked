@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, User } from "lucide-react";
+import { ArrowLeft, LogOut, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
@@ -22,7 +22,7 @@ export default function MobileSidebar() {
   const username = currentUser?.username || null;
   const displayName = currentUser?.usernameDisplay || currentUser?.username || "Guest";
   const initials = (displayName || "LI").slice(0, 2).toUpperCase();
-
+  const isFeedPage = pathname === "/home" || pathname === "/";
   const isOnOwnProfile = isSignedIn && pathname?.startsWith(`/profile/${username}`);
 
   useEffect(() => {
@@ -55,6 +55,15 @@ export default function MobileSidebar() {
     openComposer();
   }
 
+  function handleBack() {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push("/home");
+  }
+
   async function handleLogout() {
     try {
       await api.post("/auth/logout");
@@ -70,54 +79,65 @@ export default function MobileSidebar() {
   return (
     <div className="fixed inset-x-0 top-0 z-40 border-b border-white/10 bg-[#131313]/95 px-4 py-3 backdrop-blur lg:hidden">
       <div className="flex items-center justify-between gap-3">
-        {isSignedIn ? (
-          <div ref={menuRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setMenuOpen((value) => !value)}
-              className={`flex h-11 w-11 items-center justify-center rounded-xl border transition ${
-                isOnOwnProfile || menuOpen
-                  ? "border-accent bg-accent/10"
-                  : "border-white/10 bg-[#191717] hover:border-white/20"
-              }`}
-              aria-label="Open profile menu"
+        {isFeedPage ? (
+          isSignedIn ? (
+            <div ref={menuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((value) => !value)}
+                className={`flex h-11 w-11 items-center justify-center rounded-xl border transition ${
+                  isOnOwnProfile || menuOpen
+                    ? "border-accent bg-accent/10"
+                    : "border-white/10 bg-[#191717] hover:border-white/20"
+                }`}
+                aria-label="Open profile menu"
+              >
+                <SquareAvatar
+                  initials={initials}
+                  size="sm"
+                  src={currentUser?.profile?.avatarMedia?.secureUrl || ""}
+                  alt={displayName}
+                  className="h-8 w-8"
+                />
+              </button>
+              {menuOpen ? (
+                <div className="absolute left-0 top-14 z-50 min-w-[180px] overflow-hidden rounded-[18px] border border-white/10 bg-[#141313] shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
+                  <Link
+                    href={`/profile/${username}`}
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-sm text-[#ece7e2] transition hover:bg-white/5"
+                  >
+                    <User size={15} />
+                    <span>Profile</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-accent transition hover:bg-accent/10"
+                  >
+                    <LogOut size={15} />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <Link
+              href="/auth/login"
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-[#191717] text-white transition hover:border-white/20"
             >
-              <SquareAvatar
-                initials={initials}
-                size="sm"
-                src={currentUser?.profile?.avatarMedia?.secureUrl || ""}
-                alt={displayName}
-                className="h-8 w-8"
-              />
-            </button>
-            {menuOpen ? (
-              <div className="absolute left-0 top-14 z-50 min-w-[180px] overflow-hidden rounded-[18px] border border-white/10 bg-[#141313] shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
-                <Link
-                  href={`/profile/${username}`}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-sm text-[#ece7e2] transition hover:bg-white/5"
-                >
-                  <User size={15} />
-                  <span>Profile</span>
-                </Link>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-accent transition hover:bg-accent/10"
-                >
-                  <LogOut size={15} />
-                  <span>Logout</span>
-                </button>
-              </div>
-            ) : null}
-          </div>
+              <span className="text-sm font-bold">LI</span>
+            </Link>
+          )
         ) : (
-          <Link
-            href="/auth/login"
+          <button
+            type="button"
+            onClick={handleBack}
             className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-[#191717] text-white transition hover:border-white/20"
+            aria-label="Go back"
           >
-            <span className="text-sm font-bold">LI</span>
-          </Link>
+            <ArrowLeft size={18} />
+          </button>
         )}
 
         <Link href="/home" className="editorial-title text-xl font-black text-[#ece7e2] transition hover:text-white">

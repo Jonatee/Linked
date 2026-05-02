@@ -2,8 +2,9 @@
 
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
-export default function BackButton({ label = "Back", fallback = "/home", showLabel = false }) {
+export default function BackButton({ label = "Back", fallback = "/home", showLabel = false, className }) {
   const router = useRouter();
 
   function handleBack() {
@@ -20,9 +21,11 @@ export default function BackButton({ label = "Back", fallback = "/home", showLab
       type="button"
       onClick={handleBack}
       aria-label={label}
-      className={`sticky top-4 z-40 inline-flex items-center rounded-xl border border-white/10 bg-[#1b1919] py-2 text-sm font-medium text-muted shadow-[0_10px_30px_rgba(0,0,0,0.2)] transition hover:bg-[#211d1d] hover:text-white ${
-        showLabel ? "gap-2 px-4" : "justify-center px-3"
-      }`}
+      className={cn(
+        "sticky top-4 z-40 inline-flex items-center rounded-xl border border-white/10 bg-[#1b1919] py-2 text-sm font-medium text-muted shadow-[0_10px_30px_rgba(0,0,0,0.2)] transition hover:bg-[#211d1d] hover:text-white",
+        showLabel ? "gap-2 px-4" : "justify-center px-3",
+        className
+      )}
     >
       <ArrowLeft size={16} />
       {showLabel ? <span>{label}</span> : <span className="sr-only">{label}</span>}

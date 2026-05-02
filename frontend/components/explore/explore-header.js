@@ -173,7 +173,7 @@ export default function ExploreHeader() {
   }
 
   return (
-    <section className="sticky top-0 z-30 -mx-4 border-b border-white/10 bg-[#0f0d0d] px-4 pb-4 pt-4 md:-mx-6 md:px-6 lg:top-0 lg:rounded-none">
+    <section className="sticky top-[4.30rem] z-30 -mx-4 border-b border-white/10 bg-[#0f0d0d] px-4 pb-4 pt-4 md:-mx-6 md:px-6 lg:top-0 lg:rounded-none">
       <div className="panel relative overflow-visible p-6" ref={containerRef}>
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/15 text-accent">

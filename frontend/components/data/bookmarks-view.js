@@ -13,7 +13,7 @@ export default function BookmarksView() {
           </div>
           <div className="editorial-title text-3xl font-black text-white">Bookmarks</div>
         </div>
-        <p className="mt-2 text-sm text-muted">Your saved posts, connected directly to the development API.</p>
+        <p className="mt-2 text-sm text-muted">View Your Bookmarked Posts.</p>
       </section>
       <InfiniteFeedList
         queryKey={["bookmarks"]}

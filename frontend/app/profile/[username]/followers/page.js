@@ -7,7 +7,7 @@ export default async function FollowersPage({ params }) {
 
   return (
     <AppShell requireAuth={false}>
-      <BackButton fallback={`/profile/${username}`} />
+      <BackButton fallback={`/profile/${username}`} className="hidden lg:inline-flex" />
       <RelationshipList username={username} type="followers" />
     </AppShell>
   );
