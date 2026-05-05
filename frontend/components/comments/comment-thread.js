@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Heart, MessageCircle } from "lucide-react";
+import { ChevronDown, Heart, MessageCircle, Trash2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
 import api from "@/lib/api";
 import { getLoginRedirectPath } from "@/lib/auth-redirect";
 import { Textarea } from "@/components/ui/textarea";
 import useAuthStore from "@/stores/auth-store";
+import useUiStore from "@/stores/ui-store";
 
 function ReplyComposer({ commentId, postId, onClose }) {
   const router = useRouter();
@@ -18,9 +19,7 @@ function ReplyComposer({ commentId, postId, onClose }) {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.currentUser);
   const form = useForm({
-    defaultValues: {
-      content: ""
-    }
+    defaultValues: { content: "" }
   });
 
   const mutation = useMutation({
@@ -58,18 +57,15 @@ function ReplyComposer({ commentId, postId, onClose }) {
   return (
     <form
       onSubmit={form.handleSubmit((values) => {
-        if (!values.content?.trim()) {
-          return;
-        }
-
+        if (!values.content?.trim()) return;
         mutation.mutate(values);
       })}
-      className="mt-3 overflow-hidden rounded-[18px] border border-white/8 bg-[#242425] shadow-[0_8px_20px_rgba(0,0,0,0.18)]"
+      className="mt-3 overflow-hidden rounded-[16px] border border-white/8 bg-[#242425] shadow-[0_8px_20px_rgba(0,0,0,0.18)]"
     >
       <div className="px-4 pb-2 pt-3">
         <Textarea
           placeholder="Post your reply"
-          className="min-h-[60px] rounded-none bg-transparent px-0 py-0 text-[15px] leading-6 text-[#ece7e2] placeholder:text-[#6d6764] focus:ring-0"
+          className="min-h-[56px] rounded-none bg-transparent px-0 py-0 text-[14px] leading-6 text-[#ece7e2] placeholder:text-[#6d6764] focus:ring-0"
           {...form.register("content", { required: true })}
         />
       </div>
@@ -93,18 +89,28 @@ function CommentNode({ comment, childrenMap, depth = 0 }) {
   const router = useRouter();
   const pathname = usePathname();
   const currentUser = useAuthStore((state) => state.currentUser);
+  const openConfirmModal = useUiStore((state) => state.openConfirmModal);
   const [replyOpen, setReplyOpen] = useState(false);
+  const [repliesOpen, setRepliesOpen] = useState(depth === 0);
   const children = childrenMap.get(comment.id) || [];
   const [liked, setLiked] = useState(Boolean(comment.viewerState?.liked));
   const [likeCount, setLikeCount] = useState(comment.stats?.likeCount || 0);
   const queryClient = useQueryClient();
+  const isOwner = Boolean(currentUser?.id && comment.authorId && currentUser.id === comment.authorId);
+
   const likeMutation = useMutation({
     mutationFn: async (nextLiked) => {
-      if (nextLiked) {
-        await api.post(`/comments/${comment.id}/react`);
-      } else {
-        await api.delete(`/comments/${comment.id}/react`);
-      }
+      if (nextLiked) await api.post(`/comments/${comment.id}/react`);
+      else await api.delete(`/comments/${comment.id}/react`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["post", comment.postId] });
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await api.delete(`/comments/${comment.id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["post", comment.postId] });
@@ -117,9 +123,7 @@ function CommentNode({ comment, childrenMap, depth = 0 }) {
       return;
     }
 
-    if (likeMutation.isPending) {
-      return;
-    }
+    if (likeMutation.isPending) return;
 
     const nextLiked = !liked;
     setLiked(nextLiked);
@@ -133,23 +137,45 @@ function CommentNode({ comment, childrenMap, depth = 0 }) {
     });
   }
 
+  function handleDelete() {
+    if (!isOwner || deleteMutation.isPending) return;
+
+    openConfirmModal({
+      title: "Delete comment",
+      message: "This comment will be removed and cannot be restored.",
+      confirmText: deleteMutation.isPending ? "Deleting..." : "Delete",
+      cancelText: "Cancel",
+      destructive: true,
+      loading: deleteMutation.isPending,
+      onConfirm: async () => {
+        await deleteMutation.mutateAsync();
+      }
+    });
+  }
+
+  const hasChildren = children.length > 0;
+
   return (
-    <div className={depth > 0 ? "ml-5 border-l border-white/8 pl-4" : ""}>
-      <div className="rounded-[18px] border border-white/8 bg-[#1d1b1b] px-5 py-4 shadow-[0_8px_24px_rgba(0,0,0,0.16)]">
-        <div className="flex items-start gap-3">
-          <Link href={comment.author.username ? `/profile/${comment.author.username}` : "#"}>
+    <div className="w-full">
+      <div className="grid w-full grid-cols-[32px_minmax(0,1fr)] gap-3">
+        <div className="relative flex justify-center">
+          <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-8 bottom-0 w-px -translate-x-1/2 bg-white/10" />
+          <Link href={comment.author.username ? `/profile/${comment.author.username}` : "#"} className="relative z-10 mt-0.5">
             <SquareAvatar
               initials={comment.author.initials}
               src={comment.author.avatarUrl}
               alt={comment.author.name}
-              size="sm"
+              size="sm" className={depth > 0 ? "scale-90 origin-center" : undefined}
             />
           </Link>
-          <div className="min-w-0 flex-1">
+        </div>
+
+        <div className="min-w-0">
+          <div className="rounded-[18px] bg-[#1d1b1b] px-4 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.14)]">
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 href={comment.author.username ? `/profile/${comment.author.username}` : "#"}
-                className="text-base font-semibold leading-none text-[#ece7e2] transition hover:text-accent"
+                className="text-sm font-semibold leading-none text-[#ece7e2] transition hover:text-accent"
               >
                 {comment.author.name}
               </Link>
@@ -158,8 +184,10 @@ function CommentNode({ comment, childrenMap, depth = 0 }) {
                 {comment.createdAtLabel ? <span>• {comment.createdAtLabel}</span> : null}
               </div>
             </div>
-            <p className="mt-2 text-[15px] leading-7 text-[#ece7e2]">{comment.content}</p>
-            <div className="mt-3 flex items-center gap-5 text-[#8d8782]">
+
+            <p className="mt-1.5 text-[14px] leading-6 text-[#ece7e2]">{comment.content}</p>
+
+            <div className="mt-2.5 flex flex-wrap items-center gap-4 text-[#8d8782]">
               <button
                 type="button"
                 onClick={() => {
@@ -167,7 +195,6 @@ function CommentNode({ comment, childrenMap, depth = 0 }) {
                     router.push(getLoginRedirectPath(pathname || `/posts/${comment.postId}`));
                     return;
                   }
-
                   setReplyOpen((value) => !value);
                 }}
                 className="inline-flex items-center gap-2 text-sm transition hover:text-white"
@@ -175,6 +202,7 @@ function CommentNode({ comment, childrenMap, depth = 0 }) {
                 <MessageCircle size={15} />
                 {comment.stats?.replyCount ? <span>{comment.stats.replyCount}</span> : null}
               </button>
+
               <button
                 type="button"
                 onClick={handleLike}
@@ -183,23 +211,45 @@ function CommentNode({ comment, childrenMap, depth = 0 }) {
                 <Heart size={15} fill={liked ? "currentColor" : "none"} />
                 <span>{likeCount}</span>
               </button>
+
+              {isOwner ? (
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="inline-flex items-center gap-2 text-sm text-[#ff7a7a] transition hover:text-[#ffb0b0]"
+                >
+                  <Trash2 size={15} />                </button>
+              ) : null}
             </div>
+
             {replyOpen ? (
-              <ReplyComposer
-                commentId={comment.id}
-                postId={comment.postId}
-                onClose={() => setReplyOpen(false)}
-              />
+              <ReplyComposer commentId={comment.id} postId={comment.postId} onClose={() => setReplyOpen(false)} />
             ) : null}
           </div>
         </div>
       </div>
 
-      {children.length ? (
-        <div className="mt-3 space-y-3">
-          {children.map((child) => (
-            <CommentNode key={child.id} comment={child} childrenMap={childrenMap} depth={depth + 1} />
-          ))}
+      {hasChildren ? (
+        <div className="mt-2 w-full">
+          <div className="relative w-full">
+            {repliesOpen ? (
+              <div className="space-y-2">
+                {children.map((child) => (
+                  <CommentNode key={child.id} comment={child} childrenMap={childrenMap} depth={depth + 1} />
+                ))}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setRepliesOpen(true)}
+                className="inline-flex items-center gap-2 rounded-full px-2 py-1 text-sm font-medium text-[#8fb8ff] transition hover:text-white"
+              >
+                <ChevronDown size={14} />
+                <span>More</span>
+                <span className="text-xs text-[#8d8782]">({children.length})</span>
+              </button>
+            )}
+          </div>
         </div>
       ) : null}
     </div>
@@ -222,17 +272,17 @@ export default function CommentThread({ comments = [] }) {
       }
     });
 
-    return {
-      rootComments: roots,
-      childrenMap: map
-    };
+    return { rootComments: roots, childrenMap: map };
   }, [comments]);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2 pb-6">
       {rootComments.map((comment) => (
         <CommentNode key={comment.id} comment={comment} childrenMap={childrenMap} />
       ))}
     </div>
   );
 }
+
+
+
