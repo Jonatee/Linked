@@ -1,18 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Bookmark, Compass, PenSquare } from "lucide-react";
+import { Home, Bookmark, Compass, PenSquare, LogOut, User } from "lucide-react";
 import useAuthStore from "@/stores/auth-store";
 import useUiStore from "@/stores/ui-store";
 import { getLoginRedirectPath } from "@/lib/auth-redirect";
+import api from "@/lib/api";
 
 export default function BottomNavigation() {
   const pathname = usePathname();
   const router = useRouter();
   const currentUser = useAuthStore((state) => state.currentUser);
+  const clearSession = useAuthStore((state) => state.clearSession);
   const openComposer = useUiStore((state) => state.openComposer);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
+  const profileHref = currentUser ? `/profile/${currentUser.username}` : getLoginRedirectPath("/home");
   const navItems = [
     {
       href: "/home",
@@ -40,6 +46,28 @@ export default function BottomNavigation() {
     }
   ];
 
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (!menuRef.current?.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    }
+
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
+
   function handleCompose() {
     if (!currentUser) {
       router.push(getLoginRedirectPath("/home"));
@@ -49,9 +77,21 @@ export default function BottomNavigation() {
     openComposer();
   }
 
+  async function handleLogout() {
+    try {
+      await api.post("/auth/logout");
+    } catch (error) {
+      // Clear local session even if backend session is already invalid.
+    } finally {
+      clearSession();
+      setMenuOpen(false);
+      router.replace("/auth/login");
+    }
+  }
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-[#131313]/95 backdrop-blur lg:hidden">
-      <div className="flex items-center justify-around px-2 py-2">
+      <div className="flex items-end justify-around gap-1 px-2 py-1.5">
         {navItems.map((item) => {
           const Icon = item.icon;
 
@@ -61,10 +101,10 @@ export default function BottomNavigation() {
                 key={item.label}
                 type="button"
                 onClick={handleCompose}
-                className="flex flex-col items-center gap-1 rounded-xl px-3 py-2 text-muted transition hover:text-white"
+                className="flex flex-col items-center gap-0.5 rounded-xl px-2.5 py-1.5 text-muted transition hover:text-white"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent text-white shadow-[0_12px_24px_rgba(224,36,36,0.18)]">
-                  <Icon size={18} />
+                <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-accent text-white shadow-[0_14px_28px_rgba(224,36,36,0.2)]">
+                  <Icon size={22} />
                 </div>
                 <span className="text-[10px] font-medium text-white">{item.label}</span>
               </button>
@@ -75,7 +115,7 @@ export default function BottomNavigation() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-1 rounded-xl px-3 py-2 transition ${
+              className={`flex flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 transition ${
                 item.isActive ? "text-accent" : "text-muted hover:text-white"
               }`}
             >
@@ -86,6 +126,56 @@ export default function BottomNavigation() {
             </Link>
           );
         })}
+
+        <div className="relative flex flex-col items-center gap-0.5 rounded-xl px-2 py-1.5" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((value) => !value)}
+            className={`flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border transition ${
+              pathname?.startsWith(`/profile/${currentUser?.username}`) || menuOpen
+                ? "border-accent"
+                : "border-white/10"
+            } bg-[#191717]`}
+            aria-label="Open profile menu"
+          >
+            {currentUser?.profile?.avatarMedia?.secureUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={currentUser.profile.avatarMedia.secureUrl}
+                alt={currentUser?.usernameDisplay || currentUser?.username || "Profile"}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="text-[9px] font-semibold text-white">
+                {(currentUser?.usernameDisplay || currentUser?.username || "LI").slice(0, 2).toUpperCase()}
+              </span>
+            )}
+          </button>
+          <span className={`text-[10px] font-medium ${pathname?.startsWith(`/profile/${currentUser?.username}`) ? "text-accent" : "text-muted"}`}>
+            Profile
+          </span>
+
+          {menuOpen ? (
+            <div className="absolute bottom-14 right-0 z-50 w-44 overflow-hidden rounded-[16px] border border-white/10 bg-[#141313] shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
+              <Link
+                href={profileHref}
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-sm text-[#ece7e2] transition hover:bg-white/5"
+              >
+                <User size={15} />
+                <span>Profile</span>
+              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-accent transition hover:bg-accent/10"
+              >
+                <LogOut size={15} />
+                <span>Logout</span>
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
     </nav>
   );
