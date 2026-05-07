@@ -7,7 +7,7 @@ import RequireAuth from "@/components/auth/require-auth";
 import ComposerModal from "@/components/feed/composer-modal";
 import GlobalModals from "@/components/ui/global-modals";
 
-export default function AppShell({ children, rightSidebar = true, requireAuth = true }) {
+export default function AppShell({ children, rightSidebar = true, requireAuth = true, mainScrollable = true, mainClassName = "" }) {
   const shell = (
     <>
       <div className="screen-shell grid min-h-screen w-full grid-cols-1 gap-0 lg:h-screen lg:grid-cols-[320px_minmax(0,0.9fr)_320px]">
@@ -17,7 +17,11 @@ export default function AppShell({ children, rightSidebar = true, requireAuth = 
         <MobileSidebar />
         <BottomNavigation />
         <LeftSidebar />
-        <main className="min-h-screen space-y-6 border-x border-white/10 px-4 pb-20 pt-24 md:px-6 lg:h-screen lg:overflow-y-auto lg:overscroll-contain lg:py-6 lg:pt-6 lg:pb-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <main
+          className={`min-h-screen space-y-6 border-x border-white/10 px-4 pb-20 pt-24 md:px-6 lg:h-screen lg:min-h-0 lg:py-6 lg:pt-6 lg:pb-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+            mainScrollable ? "lg:overflow-y-auto lg:overscroll-contain" : "lg:overflow-hidden"
+          } ${mainClassName}`}
+        >
           {children}
         </main>
         <div
@@ -39,3 +43,4 @@ export default function AppShell({ children, rightSidebar = true, requireAuth = 
 
   return <RequireAuth>{shell}</RequireAuth>;
 }
+

@@ -2,12 +2,24 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, BellRing } from "lucide-react";
+import { ArrowLeft, BellRing, Bookmark } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { getLoginRedirectPath } from "@/lib/auth-redirect";
 import useAuthStore from "@/stores/auth-store";
+
+function Badge({ count }) {
+  if (!count) {
+    return null;
+  }
+
+  return (
+    <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-0.5 text-[9px] font-black text-white">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
 
 export default function MobileSidebar() {
   const pathname = usePathname();
@@ -25,9 +37,11 @@ export default function MobileSidebar() {
     enabled: Boolean(currentUser)
   });
 
-  const unreadCount = (notificationsQuery.data || []).filter((item) => !item.isRead).length;
+  const unreadNotifications = (notificationsQuery.data || []).filter((item) => !item.isRead).length;
   const notificationsHref = isSignedIn ? "/notifications" : getLoginRedirectPath("/notifications");
+  const bookmarksHref = isSignedIn ? "/bookmarks" : getLoginRedirectPath("/bookmarks");
   const notificationsActive = pathname === "/notifications" || pathname?.startsWith("/notifications");
+  const bookmarksActive = pathname === "/bookmarks" || pathname?.startsWith("/bookmarks");
 
   function handleBack() {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -56,24 +70,30 @@ export default function MobileSidebar() {
           </button>
         )}
 
-        <Link
-          href={notificationsHref}
-          aria-label="Notifications"
-          className={`relative flex h-11 min-w-11 items-center justify-center rounded-xl border px-3 transition ${
-            notificationsActive
-              ? "border-accent bg-accent/10 text-accent"
-              : "border-white/10 bg-[#191717] text-white hover:border-white/20"
-          }`}
-        >
-          <div className="relative">
-            <BellRing size={18} />
-            {unreadCount > 0 && (
-              <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-0.5 text-[9px] font-black text-white">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </span>
-            )}
-          </div>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={bookmarksHref}
+            aria-label="Bookmarks"
+            className={`relative flex h-11 min-w-11 items-center justify-center rounded-xl border px-3 transition ${
+              bookmarksActive ? "border-accent bg-accent/10 text-accent" : "border-white/10 bg-[#191717] text-white hover:border-white/20"
+            }`}
+          >
+            <Bookmark size={18} />
+          </Link>
+
+          <Link
+            href={notificationsHref}
+            aria-label="Notifications"
+            className={`relative flex h-11 min-w-11 items-center justify-center rounded-xl border px-3 transition ${
+              notificationsActive ? "border-accent bg-accent/10 text-accent" : "border-white/10 bg-[#191717] text-white hover:border-white/20"
+            }`}
+          >
+            <div className="relative">
+              <BellRing size={18} />
+              <Badge count={unreadNotifications} />
+            </div>
+          </Link>
+        </div>
       </div>
     </div>
   );

@@ -7,17 +7,33 @@ const redis = new Redis(env.redisUrl, {
   lazyConnect: true
 });
 
+let connected = false;
+
 async function connectRedis() {
+  if (connected) {
+    return;
+  }
+
   try {
     await redis.connect();
+    connected = true;
     logInfo("Redis connected");
   } catch (error) {
     logError("Redis connection failed", error.message);
   }
 }
 
+async function closeRedis() {
+  if (!connected) {
+    return;
+  }
+
+  connected = false;
+  await redis.quit();
+}
+
 module.exports = {
   redis,
-  connectRedis
+  connectRedis,
+  closeRedis
 };
-

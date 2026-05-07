@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Ban, Bell, BellOff, X } from "lucide-react";
+import { Ban, Bell, BellOff, MessageSquareText, UserCheck, UserPlus, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
 import VerifiedBadge from "@/components/branding/verified-badge";
@@ -75,11 +75,34 @@ export default function ProfileHeader({ profile }) {
     }
   });
 
+  const openChatMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post("/messages/conversations", {
+        recipientId: profile.userId
+      });
+
+      return response.data.data;
+    },
+    onSuccess: (data) => {
+      const conversationId = data?.conversation?.id;
+      if (conversationId) {
+        router.push(`/messages/${conversationId}`);
+      } else {
+        router.push("/messages");
+      }
+    }
+  });
+
+  const canMessage = Boolean(profile.viewerState.canMessage ?? (profile.viewerState.following || profile.viewerState.followsViewer));
   const busy =
-    followMutation.isPending || blockMutation.isPending || postNotificationsMutation.isPending;
+    followMutation.isPending || blockMutation.isPending || postNotificationsMutation.isPending || openChatMutation.isPending;
 
   function requireLogin() {
     router.push(getLoginRedirectPath(pathname || `/profile/${profile.username}`));
+  }
+
+  function actionButtonClassName() {
+    return "h-11 w-11 rounded-xl px-0";
   }
 
   return (
@@ -106,10 +129,34 @@ export default function ProfileHeader({ profile }) {
               Edit profile
             </Button>
           ) : (
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="mt-4 flex flex-wrap items-center gap-3 md:mt-6">
+              {canMessage ? (
+                <Button
+                  variant="secondary"
+                  className={actionButtonClassName()}
+                  title="Message"
+                  aria-label="Message"
+                  onClick={() => {
+                    if (!currentUser) {
+                      requireLogin();
+                      return;
+                    }
+
+                    openChatMutation.mutate();
+                  }}
+                  loading={openChatMutation.isPending}
+                  disabled={busy || profile.viewerState.blockedByViewer || profile.viewerState.hasBlockedViewer}
+                >
+                  <MessageSquareText size={16} />
+                </Button>
+              ) : null}
+
               {!profile.viewerState.hasBlockedViewer ? (
                 <Button
                   variant={profile.viewerState.following ? "secondary" : "primary"}
+                  className={actionButtonClassName()}
+                  title={profile.viewerState.following ? "Unfollow" : "Follow"}
+                  aria-label={profile.viewerState.following ? "Unfollow" : "Follow"}
                   onClick={() => {
                     if (!currentUser) {
                       requireLogin();
@@ -121,17 +168,20 @@ export default function ProfileHeader({ profile }) {
                   loading={followMutation.isPending}
                   disabled={busy || profile.viewerState.blockedByViewer}
                 >
-                  {profile.viewerState.following ? "Following" : "Follow"}
+                  {profile.viewerState.following ? <UserCheck size={16} /> : <UserPlus size={16} />}
                 </Button>
               ) : (
-                <Button variant="secondary" disabled>
-                  Blocked you
+                <Button variant="secondary" className={actionButtonClassName()} disabled title="Blocked you" aria-label="Blocked you">
+                  <Ban size={16} />
                 </Button>
               )}
 
               {profile.viewerState.following ? (
                 <Button
                   variant="secondary"
+                  className={actionButtonClassName()}
+                  title={profile.viewerState.postNotificationsEnabled ? "Turn off post alerts" : "Turn on post alerts"}
+                  aria-label={profile.viewerState.postNotificationsEnabled ? "Turn off post alerts" : "Turn on post alerts"}
                   onClick={() => {
                     if (!currentUser) {
                       requireLogin();
@@ -143,17 +193,15 @@ export default function ProfileHeader({ profile }) {
                   loading={postNotificationsMutation.isPending}
                   disabled={busy || profile.viewerState.blockedByViewer}
                 >
-                  {profile.viewerState.postNotificationsEnabled ? (
-                    <Bell size={16} className="mr-2" />
-                  ) : (
-                    <BellOff size={16} className="mr-2" />
-                  )}
-                  {profile.viewerState.postNotificationsEnabled ? "Turn off post alerts" : "Turn on post alerts"}
+                  {profile.viewerState.postNotificationsEnabled ? <Bell size={16} /> : <BellOff size={16} />}
                 </Button>
               ) : null}
 
               <Button
                 variant="secondary"
+                className={actionButtonClassName()}
+                title={profile.viewerState.blockedByViewer ? "Unblock" : "Block"}
+                aria-label={profile.viewerState.blockedByViewer ? "Unblock" : "Block"}
                 onClick={() => {
                   if (!currentUser) {
                     requireLogin();
@@ -165,8 +213,7 @@ export default function ProfileHeader({ profile }) {
                 loading={blockMutation.isPending}
                 disabled={busy}
               >
-                <Ban size={16} className="mr-2" />
-                {profile.viewerState.blockedByViewer ? "Unblock" : "Block"}
+                <Ban size={16} />
               </Button>
             </div>
           )}

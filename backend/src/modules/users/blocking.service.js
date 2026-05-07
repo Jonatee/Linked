@@ -23,9 +23,11 @@ async function getRelationshipState(viewerId, targetUserId) {
     return {
       isSelf: false,
       following: false,
+      followsViewer: false,
       blockedByViewer: false,
       hasBlockedViewer: false,
       canInteract: true,
+      canMessage: false,
       postNotificationsEnabled: false
     };
   }
@@ -34,18 +36,25 @@ async function getRelationshipState(viewerId, targetUserId) {
     return {
       isSelf: true,
       following: false,
+      followsViewer: false,
       blockedByViewer: false,
       hasBlockedViewer: false,
       canInteract: true,
+      canMessage: false,
       postNotificationsEnabled: false
     };
   }
 
-  const [settingsMap, followRecord] = await Promise.all([
+  const [settingsMap, followRecord, reverseFollowRecord] = await Promise.all([
     getSettingsMap([viewerId, targetUserId]),
     Follow.findOne({
       followerId: viewerId,
       followingId: targetUserId,
+      status: { $in: ["active", "accepted"] }
+    }).lean(),
+    Follow.findOne({
+      followerId: targetUserId,
+      followingId: viewerId,
       status: { $in: ["active", "accepted"] }
     }).lean()
   ]);
@@ -54,17 +63,19 @@ async function getRelationshipState(viewerId, targetUserId) {
   const targetBlockedIds = getBlockedIds(settingsMap, targetUserId);
   const blockedByViewer = viewerBlockedIds.has(targetUserId);
   const hasBlockedViewer = targetBlockedIds.has(viewerId);
+  const canInteract = !blockedByViewer && !hasBlockedViewer;
 
   return {
     isSelf: false,
     following: Boolean(followRecord),
+    followsViewer: Boolean(reverseFollowRecord),
     blockedByViewer,
     hasBlockedViewer,
-    canInteract: !blockedByViewer && !hasBlockedViewer,
+    canInteract,
+    canMessage: canInteract && (Boolean(followRecord) || Boolean(reverseFollowRecord)),
     postNotificationsEnabled: Boolean(followRecord?.postNotifications)
   };
 }
-
 async function isBlockedBetween(userAId, userBId) {
   if (!userAId || !userBId || userAId === userBId) {
     return false;
@@ -167,3 +178,4 @@ module.exports = {
   blockUser,
   unblockUser
 };
+

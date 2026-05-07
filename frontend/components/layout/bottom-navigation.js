@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Bookmark, Compass, PenSquare, LogOut, User } from "lucide-react";
+import { Compass, Home, LogOut, MessageSquareText, PenSquare, User } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import useAuthStore from "@/stores/auth-store";
 import useUiStore from "@/stores/ui-store";
 import { getLoginRedirectPath } from "@/lib/auth-redirect";
@@ -18,7 +19,17 @@ export default function BottomNavigation() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
+  useQuery({
+    queryKey: ["messages", "conversations", "nav"],
+    queryFn: async () => {
+      const response = await api.get("/messages/conversations");
+      return response.data.data;
+    },
+    enabled: Boolean(currentUser)
+  });
+
   const profileHref = currentUser ? `/profile/${currentUser.username}` : getLoginRedirectPath("/home");
+
   const navItems = [
     {
       href: "/home",
@@ -39,10 +50,10 @@ export default function BottomNavigation() {
       isActive: false
     },
     {
-      href: "/bookmarks",
-      icon: Bookmark,
-      label: "Bookmarks",
-      isActive: pathname === "/bookmarks" || pathname?.startsWith("/bookmarks")
+      href: "/messages",
+      icon: MessageSquareText,
+      label: "Messages",
+      isActive: pathname === "/messages" || pathname?.startsWith("/messages")
     }
   ];
 
@@ -119,7 +130,7 @@ export default function BottomNavigation() {
                 item.isActive ? "text-accent" : "text-muted hover:text-white"
               }`}
             >
-              <div className="relative">
+              <div className="relative flex items-center justify-center">
                 <Icon size={20} />
               </div>
               <span className="text-[10px] font-medium">{item.label}</span>
@@ -132,9 +143,7 @@ export default function BottomNavigation() {
             type="button"
             onClick={() => setMenuOpen((value) => !value)}
             className={`flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border transition ${
-              pathname?.startsWith(`/profile/${currentUser?.username}`) || menuOpen
-                ? "border-accent"
-                : "border-white/10"
+              pathname?.startsWith(`/profile/${currentUser?.username}`) || menuOpen ? "border-accent" : "border-white/10"
             } bg-[#191717]`}
             aria-label="Open profile menu"
           >

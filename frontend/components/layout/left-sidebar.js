@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, Bookmark, Compass, Home, LogOut, PenSquare, Settings, Shield, User } from "lucide-react";
+import { Bell, Bookmark, Compass, Home, LogOut, MessageSquareText, PenSquare, Settings, Shield, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import SquareAvatar from "@/components/branding/square-avatar";
 import VerifiedBadge from "@/components/branding/verified-badge";
@@ -21,9 +21,7 @@ function NotificationMark({ unreadCount }) {
       <div className="notification-pulse absolute inset-0 rounded-xl bg-[#201111]" />
       <div className="absolute bottom-[-3px] right-[-3px] h-4 w-4 rounded-[4px] bg-black" />
       <div className="absolute bottom-[-1px] right-[-1px] h-4 w-4 rounded-[4px] bg-accent/85" />
-      <span className="editorial-title relative z-10 text-[11px] font-black tracking-[0.08em] text-white">
-        {value}
-      </span>
+      <span className="editorial-title relative z-10 text-[11px] font-black tracking-[0.08em] text-white">{value}</span>
     </div>
   );
 }
@@ -37,6 +35,7 @@ export default function LeftSidebar() {
   const username = currentUser?.username || null;
   const displayName = currentUser?.usernameDisplay || currentUser?.username || "Guest";
   const initials = (displayName || "LI").slice(0, 2).toUpperCase();
+
   const notificationsQuery = useQuery({
     queryKey: ["notifications"],
     queryFn: async () => {
@@ -45,13 +44,15 @@ export default function LeftSidebar() {
     },
     enabled: Boolean(currentUser)
   });
-  const unreadCount = (notificationsQuery.data || []).filter((item) => !item.isRead).length;
+
+  const unreadNotifications = (notificationsQuery.data || []).filter((item) => !item.isRead).length;
 
   const items = isSignedIn
     ? [
         { href: "/home", label: "Home", icon: Home },
         { href: "/explore", label: "Explore", icon: Compass },
-        { href: "/notifications", label: "Notifications", icon: null },
+        { href: "/messages", label: "Messages", icon: MessageSquareText },
+        { href: "/notifications", label: "Notifications", icon: Bell },
         { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
         { href: username ? `/profile/${username}` : "/home", label: "Profile", icon: User },
         { href: "/settings", label: "Settings", icon: Settings }
@@ -104,12 +105,7 @@ export default function LeftSidebar() {
           />
         </div>
         <div className="mb-8 flex items-center gap-3">
-          <SquareAvatar
-            initials={initials}
-            size="sm"
-            src={currentUser?.profile?.avatarMedia?.secureUrl || ""}
-            alt={displayName}
-          />
+          <SquareAvatar initials={initials} size="sm" src={currentUser?.profile?.avatarMedia?.secureUrl || ""} alt={displayName} />
           <div>
             <div className="flex items-center gap-2">
               <div className="editorial-title text-sm font-bold text-white">{displayName}</div>
@@ -119,26 +115,28 @@ export default function LeftSidebar() {
           </div>
         </div>
       </div>
+
       <nav className="space-y-2">
         {items.map((item) => {
           const Icon = item.icon;
           const isNotifications = item.label === "Notifications";
+
           return (
             <Link
               key={item.href + item.label}
               href={item.href}
               className="hover-lift flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium text-muted transition hover:bg-[#1c1b1b] hover:text-white"
             >
-              {isNotifications ? (
-                unreadCount ? <NotificationMark unreadCount={unreadCount} /> : <Bell size={18} />
-              ) : (
-                <Icon size={18} />
-              )}
+              <span className="relative flex h-5 w-5 items-center justify-center">
+                {isNotifications ? <Bell size={18} /> : <Icon size={18} />}
+                {isNotifications ? <NotificationMark unreadCount={unreadNotifications} /> : null}
+              </span>
               <span>{item.label}</span>
             </Link>
           );
         })}
       </nav>
+
       <div className="mt-auto px-3">
         <button
           type="button"
