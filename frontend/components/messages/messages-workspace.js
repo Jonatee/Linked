@@ -269,11 +269,8 @@ function useMessageSocket({ enabled, currentUserId, onEvent }) {
       };
 
       socket.onerror = () => {
-        try {
-          socket.close();
-        } catch (error) {
-          // Ignore socket close errors here; onclose will handle reconnection.
-        }
+        // Let the browser close the socket naturally so we do not force
+        // a "closed before connection is established" console error.
       };
     };
 
@@ -370,6 +367,7 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
   const typingState = selectedConversationId ? typingByConversationId[selectedConversationId] || false : false;
   const showThread = layout !== "inbox" && Boolean(selectedConversationId);
   const showSidebar = layout !== "thread";
+  const canMessageCurrentThread = threadConversation?.canMessage ?? activeConversation?.canMessage ?? true;
 
   useEffect(() => {
     setMounted(true);
