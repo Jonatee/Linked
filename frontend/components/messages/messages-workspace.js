@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ImagePlus, MessageSquareText, MoreHorizontal, Plus, Search, Send, Smile, Sparkles, UserRound } from "lucide-react";
+import { ArrowLeft, ImagePlus, MessageSquareText, MoreHorizontal, Plus, Search, Send, Smile, Sparkles, UserRound, Reply, X } from "lucide-react";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 import useAuthStore from "@/stores/auth-store";
@@ -142,13 +142,71 @@ function ConversationRow({ conversation, active, onClick, presence }) {
   );
 }
 
-function MessageBubble({ message, isActiveUser, avatarUrl, initials, presence, isLatest }) {
+function MessageBubble({ message, isActiveUser, avatarUrl, initials, presence, isLatest, onReply }) {
   const timeLabel = formatMessageTime(message.createdAt);
   const readLabel = message.status === "read" ? "Read" : "Sent";
 
+  const [translateX, setTranslateX] = useState(0);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const isSwiping = useRef(false);
+
+  function handleTouchStart(e) {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    isSwiping.current = false;
+  }
+
+  function handleTouchMove(e) {
+    const currentX = e.touches[0].clientX;
+    const currentY = e.touches[0].clientY;
+    
+    const diffX = currentX - touchStartX.current;
+    const diffY = Math.abs(currentY - touchStartY.current);
+
+    if (diffY > 15 && !isSwiping.current) {
+      return;
+    }
+
+    if (Math.abs(diffX) > 10) {
+      isSwiping.current = true;
+    }
+
+    if (!isSwiping.current) return;
+
+    if (isActiveUser && diffX < 0 && diffX > -80) {
+      setTranslateX(diffX);
+    } else if (!isActiveUser && diffX > 0 && diffX < 80) {
+      setTranslateX(diffX);
+    }
+  }
+
+  function handleTouchEnd() {
+    if (Math.abs(translateX) > 50) {
+      onReply?.(message);
+    }
+    setTranslateX(0);
+    isSwiping.current = false;
+  }
+
   return (
-    <div className={cn("flex w-full", isActiveUser ? "justify-end" : "justify-start")}>
-      <div className={cn("flex max-w-[70%] items-end gap-2.5", isActiveUser ? "ml-auto flex-row-reverse" : "mr-auto")}> 
+    <div 
+      className={cn("relative flex w-full overflow-x-hidden", isActiveUser ? "justify-end" : "justify-start")}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div 
+        className={cn("absolute top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 transition-opacity", isActiveUser ? "right-4" : "left-4")}
+        style={{ opacity: Math.abs(translateX) > 20 ? Math.min((Math.abs(translateX) - 20) / 30, 1) : 0 }}
+      >
+        <Reply size={14} className="text-white" />
+      </div>
+
+      <div 
+        className={cn("relative z-10 flex max-w-[70%] items-end gap-2.5", isActiveUser ? "ml-auto flex-row-reverse" : "mr-auto")}
+        style={{ transform: `translateX(${translateX}px)`, transitionDuration: translateX === 0 ? "200ms" : "0ms" }}
+      > 
         <ChatAvatar
           src={avatarUrl}
           alt={message.sender?.profile?.displayName || message.sender?.usernameDisplay || message.sender?.username || "User"}
@@ -306,8 +364,10 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
   const messageListRef = useRef(null);
   const messageListNearBottomRef = useRef(true);
   const lastThreadLengthRef = useRef(0);
+  const composerRef = useRef(null);
   const [search, setSearch] = useState("");
   const [body, setBody] = useState("");
+  const [replyingTo, setReplyingTo] = useState(null);
   const [presenceByUserId, setPresenceByUserId] = useState({});
   const [typingByConversationId, setTypingByConversationId] = useState({});
   const [mounted, setMounted] = useState(false);
@@ -559,7 +619,12 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
       return response.data.data;
     },
     onMutate: async ({ body: nextBody, clientMessageId }) => {
-      const optimisticMessage = buildOptimisticMessage(nextBody, clientMessageId);      setBody("");
+      const optimisticMessage = buildOptimisticMessage(nextBody, clientMessageId);
+      setBody("");
+      setReplyingTo(null);
+      if (composerRef.current) {
+        composerRef.current.style.height = "auto";
+      }
       clearTypingIndicator();
 
       await queryClient.cancelQueries({ queryKey: ["messages", selectedConversationId] });
@@ -587,7 +652,8 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
         queryClient.setQueryData(["messages", selectedConversationId], context.previousConversation);
       }
     },
-    onSuccess: (message, variables, context) => {
+    onSuccess: (data, variables, context) => {
+      const message = data?.message || data; // Handle wrapper object returning { conversation, message }
       queryClient.setQueryData(["messages", selectedConversationId], (current) => {
         const source = current || context?.previousConversation || null;
         if (!source) {
@@ -623,6 +689,12 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
 
   function handleComposerChange(event) {
     setBody(event.target.value);
+    
+    if (composerRef.current) {
+      composerRef.current.style.height = "auto";
+      composerRef.current.style.height = `${composerRef.current.scrollHeight}px`;
+    }
+
     sendTypingIndicator(true);
     scheduleTypingStop();
   }
@@ -636,11 +708,17 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
 
   function handleSendMessage() {
     const trimmed = body.trim();
-    if (!selectedConversationId || !trimmed) {
+    if (!selectedConversationId || (!trimmed && !replyingTo)) {
       return;
     }
 
-    sendMessageMutation.mutate({ body: trimmed, clientMessageId: `${Date.now()}-${Math.random().toString(16).slice(2)}` });
+    let finalBody = trimmed;
+    if (replyingTo) {
+      const shortText = replyingTo.body.length > 50 ? replyingTo.body.slice(0, 50) + "..." : replyingTo.body;
+      finalBody = `> **Replying to ${replyingTo.sender?.usernameDisplay || replyingTo.sender?.username || "Someone"}**\n> *${shortText}*\n\n${trimmed}`;
+    }
+
+    sendMessageMutation.mutate({ body: finalBody, clientMessageId: `${Date.now()}-${Math.random().toString(16).slice(2)}` });
   }
 
   const activeConversationTitle = getConversationName(threadConversation);
@@ -780,6 +858,7 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
                       initials={initials}
                       presence={currentPresence}
                       isLatest={isLatest}
+                      onReply={setReplyingTo}
                     />
                   );
                 })
@@ -794,32 +873,37 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
               )}
             </div>
 
-            <footer className="sticky bottom-3 z-20 shrink-0 border-t border-white/8 bg-[#0b0b0b]/95 px-4 py-4 backdrop-blur-xl md:bottom-0 md:px-6">
-              {typingState ? <div className="mb-3 text-sm text-emerald-400">Typing...</div> : null}
-              <div className="mx-auto flex max-w-4xl items-center gap-3 rounded-[28px] border border-white/10 bg-[#121212] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
-                <button type="button" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1f1f1f] text-muted transition hover:text-white" aria-label="Add attachment">
-                  <Plus size={18} />
-                </button>
-                <button type="button" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1f1f1f] text-muted transition hover:text-white" aria-label="Add image">
-                  <ImagePlus size={18} />
-                </button>
+            <footer className="sticky bottom-0 z-20 shrink-0 border-t border-white/8 bg-[#0b0b0b]/95 p-3 backdrop-blur-xl md:px-6 md:py-4">
+              {typingState ? <div className="mb-2 text-sm text-emerald-400">Typing...</div> : null}
+              {replyingTo ? (
+                <div className="mb-2 flex items-center justify-between rounded-2xl bg-[#1c1a1a] px-4 py-3 shadow-md border border-white/5">
+                  <div className="flex min-w-0 flex-col">
+                    <span className="text-xs font-bold text-accent">Replying to {replyingTo.sender?.usernameDisplay || replyingTo.sender?.username}</span>
+                    <span className="truncate text-sm text-muted">{replyingTo.body}</span>
+                  </div>
+                  <button type="button" onClick={() => setReplyingTo(null)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5 text-muted transition hover:bg-white/10 hover:text-white">
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : null}
+              <div className="mx-auto flex max-w-4xl items-end gap-3 rounded-[28px] border border-white/10 bg-[#121212] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
                 <div className="relative flex-1">
-                  <Input
+                  <textarea
+                    ref={composerRef}
                     value={body}
                     onChange={handleComposerChange}
                     onKeyDown={handleComposerKeyDown}
                     placeholder="Type a message..."
-                    className="h-12 w-full border-0 bg-transparent px-4 text-sm text-white placeholder:text-[#6f6f6f] focus-visible:ring-0"
+                    rows={1}
+                    className="max-h-[140px] min-h-[44px] w-full resize-none border-0 bg-transparent px-4 py-3 text-sm text-white placeholder:text-[#6f6f6f] focus-visible:outline-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    style={{ height: "auto" }}
                   />
                 </div>
-                <button type="button" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1f1f1f] text-muted transition hover:text-white" aria-label="Emoji picker">
-                  <Smile size={18} />
-                </button>
                 <button
                   type="button"
                   onClick={handleSendMessage}
                   disabled={!body.trim() || !selectedConversationId || !canMessageCurrentThread}
-                  className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ff243f] text-white transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#ff243f] text-white transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
                   aria-label="Send message"
                 >
                   <Send size={18} />

@@ -8,6 +8,7 @@ const UserSettings = require("../users/user-settings.model");
 const Conversation = require("./message-conversation.model");
 const Message = require("./message.model");
 const { publishUserEvent } = require("./message-stream");
+const { sendToUser } = require("../../utils/fcm");
 
 function buildConversationKey(participantIds = []) {
   return [...participantIds].sort().join(":");
@@ -330,6 +331,18 @@ async function sendMessage(userId, conversationId, payload) {
     conversation: hydratedConversation,
     message: hydratedMessage
   };
+
+  const senderName = hydratedMessage.sender?.profile?.displayName || hydratedMessage.sender?.usernameDisplay || hydratedMessage.sender?.username || "Someone";
+  sendToUser(recipientId, {
+    title: `New message from ${senderName}`,
+    body: hydratedMessage.body,
+    data: {
+      type: "message",
+      conversationId: conversation.id,
+      webUrl: `/messages/${conversation.id}`,
+      fullUrl: `${process.env.FRONTEND_ORIGIN || "https://linked-theta.vercel.app"}/messages/${conversation.id}`
+    }
+  }).catch((error) => console.error("Failed to send message push notification:", error));
 
   await Promise.all([
     publishUserEvent(userId, { type: "message.created", payload: eventPayload }).catch(() => {}),
