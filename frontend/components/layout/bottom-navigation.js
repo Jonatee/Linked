@@ -19,7 +19,7 @@ export default function BottomNavigation() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
-  useQuery({
+  const { data: convData } = useQuery({
     queryKey: ["messages", "conversations", "nav"],
     queryFn: async () => {
       const response = await api.get("/messages/conversations");
@@ -27,6 +27,8 @@ export default function BottomNavigation() {
     },
     enabled: Boolean(currentUser)
   });
+
+  const totalUnreadCount = (convData?.items || []).filter((conv) => conv.unreadCount > 0).length || 0;
 
   const profileHref = currentUser ? `/profile/${currentUser.username}` : getLoginRedirectPath("/home");
 
@@ -132,6 +134,11 @@ export default function BottomNavigation() {
             >
               <div className="relative flex items-center justify-center">
                 <Icon size={20} />
+                {item.label === "Messages" && totalUnreadCount > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-white shadow-[0_2px_10px_rgba(224,36,36,0.5)]">
+                    {totalUnreadCount}
+                  </span>
+                )}
               </div>
               <span className="text-[10px] font-medium">{item.label}</span>
             </Link>

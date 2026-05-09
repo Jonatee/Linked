@@ -13,6 +13,11 @@ const messageSchema = createBaseSchema(
       default: "sent",
       index: true
     },
+    replyTo: {
+      messageId: { type: String, default: null },
+      body: { type: String, default: null },
+      senderName: { type: String, default: null }
+    },
     readAt: { type: Date, default: null }
   },
   { timestamps: { createdAt: true, updatedAt: false } }

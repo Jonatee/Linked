@@ -45,7 +45,17 @@ export default function LeftSidebar() {
     enabled: Boolean(currentUser)
   });
 
+  const conversationsQuery = useQuery({
+    queryKey: ["messages", "conversations", "nav"],
+    queryFn: async () => {
+      const response = await api.get("/messages/conversations");
+      return response.data.data;
+    },
+    enabled: Boolean(currentUser)
+  });
+
   const unreadNotifications = (notificationsQuery.data || []).filter((item) => !item.isRead).length;
+  const unreadMessagesCount = (conversationsQuery.data?.items || []).filter((conv) => conv.unreadCount > 0).length || 0;
 
   const items = isSignedIn
     ? [
@@ -121,6 +131,8 @@ export default function LeftSidebar() {
           const Icon = item.icon;
           const isNotifications = item.label === "Notifications";
 
+          const isMessages = item.label === "Messages";
+
           return (
             <Link
               key={item.href + item.label}
@@ -130,6 +142,11 @@ export default function LeftSidebar() {
               <span className="relative flex h-5 w-5 items-center justify-center">
                 {isNotifications ? <Bell size={18} /> : <Icon size={18} />}
                 {isNotifications ? <NotificationMark unreadCount={unreadNotifications} /> : null}
+                {isMessages && unreadMessagesCount > 0 ? (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-white shadow-[0_2px_10px_rgba(224,36,36,0.5)]">
+                    {unreadMessagesCount}
+                  </span>
+                ) : null}
               </span>
               <span>{item.label}</span>
             </Link>

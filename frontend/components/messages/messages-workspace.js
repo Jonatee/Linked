@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ImagePlus, MessageSquareText, MoreHorizontal, Plus, Search, Send, Smile, Sparkles, UserRound, Reply, X } from "lucide-react";
@@ -142,6 +142,29 @@ function ConversationRow({ conversation, active, onClick, presence }) {
   );
 }
 
+function formatDateDivider(dateString) {
+  if (!dateString) return null;
+  const date = new Date(dateString);
+  const now = new Date();
+  
+  const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+  if (isToday) return "Today";
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday = date.getDate() === yesterday.getDate() && date.getMonth() === yesterday.getMonth() && date.getFullYear() === yesterday.getFullYear();
+  if (isYesterday) return "Yesterday";
+
+  const diffTime = Math.abs(now - date);
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+  if (diffDays < 7) {
+    return date.toLocaleDateString('en-US', { weekday: 'long' });
+  }
+
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
+}
+
 function MessageBubble({ message, isActiveUser, avatarUrl, initials, presence, isLatest, onReply }) {
   const timeLabel = formatMessageTime(message.createdAt);
   const readLabel = message.status === "read" ? "Read" : "Sent";
@@ -217,18 +240,23 @@ function MessageBubble({ message, isActiveUser, avatarUrl, initials, presence, i
         <div className={cn("flex flex-col gap-1", isActiveUser ? "items-end text-right" : "items-start text-left")}> 
           <div
             className={cn(
-              "rounded-[18px] border px-4 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.16)]",
+              "rounded-[18px] border px-4 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.16)] flex flex-col min-w-0",
               isActiveUser
                 ? "border-[#ff4d6d]/30 bg-[#ff243f] text-white shadow-[0_12px_26px_rgba(255,36,63,0.2)]"
                 : "border-white/10 bg-[#1c1a1a] text-[#ece7e2]"
             )}
           >
+            {message.replyTo ? (
+              <div className="mb-1.5 flex flex-col rounded-xl bg-black/20 px-3 py-1.5 text-left border-l-2 border-white/50 max-w-full min-w-0">
+                <span className="text-[11px] font-bold opacity-90 truncate">{message.replyTo.senderName}</span>
+                <span className="truncate text-xs opacity-80">{message.replyTo.body}</span>
+              </div>
+            ) : null}
             <p className="whitespace-pre-wrap break-words text-sm leading-6">{message.body}</p>
           </div>
           <div className={cn("flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted", isActiveUser ? "justify-end pr-1" : "justify-start pl-1")}>
             <span>{timeLabel}</span>
             {isActiveUser ? <span className={cn(message.status === "sending" ? "text-muted" : "text-[#ff4d6d]")}>{message.status === "sending" ? "Sending" : readLabel}</span> : null}
-            {presence?.typing && !isActiveUser && isLatest ? <span className="text-emerald-400">Typing</span> : null}
           </div>
         </div>
       </div>
@@ -459,6 +487,22 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
 
     queryClient.invalidateQueries({ queryKey: ["messages", "conversations"] });
     queryClient.invalidateQueries({ queryKey: ["messages", selectedConversationId] });
+
+    const updateUnreadCount = (current) => {
+      if (!current?.items) return current;
+      const items = current.items.map((c) => {
+        if (c.id === selectedConversationId && c.unreadCount > 0) {
+          return { ...c, unreadCount: 0 };
+        }
+        return c;
+      });
+      return { ...current, items };
+    };
+
+    queryClient.setQueryData(["messages", "conversations"], updateUnreadCount);
+    queryClient.setQueryData(["messages", "conversations", "nav"], updateUnreadCount);
+
+    api.patch(`/messages/conversations/${selectedConversationId}/read`).catch(() => {});
   }, [queryClient, selectedConversationId]);
 
   useEffect(() => {
@@ -612,14 +656,16 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: async ({ body: nextBody }) => {
-      const response = await api.post(`/messages/conversations/${selectedConversationId}/messages`, {
-        body: nextBody
-      });
+    mutationFn: async ({ body: nextBody, replyTo }) => {
+      const payload = { body: nextBody };
+      if (replyTo) {
+        payload.replyTo = replyTo;
+      }
+      const response = await api.post(`/messages/conversations/${selectedConversationId}/messages`, payload);
       return response.data.data;
     },
-    onMutate: async ({ body: nextBody, clientMessageId }) => {
-      const optimisticMessage = buildOptimisticMessage(nextBody, clientMessageId);
+    onMutate: async ({ body: nextBody, clientMessageId, replyTo }) => {
+      const optimisticMessage = buildOptimisticMessage(nextBody, clientMessageId, replyTo);
       setBody("");
       setReplyingTo(null);
       if (composerRef.current) {
@@ -628,8 +674,10 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
       clearTypingIndicator();
 
       await queryClient.cancelQueries({ queryKey: ["messages", selectedConversationId] });
+      await queryClient.cancelQueries({ queryKey: ["messages", "conversations"] });
 
       const previousConversation = queryClient.getQueryData(["messages", selectedConversationId]);
+      const previousConversationsList = queryClient.getQueryData(["messages", "conversations", "nav"]); // Optional backup
 
       queryClient.setQueryData(["messages", selectedConversationId], (current) => {
         if (!current) {
@@ -644,6 +692,25 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
           items: [...filtered, optimisticMessage]
         };
       });
+
+      const updateConversationsCache = (current) => {
+        if (!current?.items) return current;
+        const idx = current.items.findIndex((c) => c.id === selectedConversationId);
+        if (idx > -1) {
+          const newItems = [...current.items];
+          const [conv] = newItems.splice(idx, 1);
+          newItems.unshift({
+            ...conv,
+            lastMessageText: nextBody,
+            lastMessageAt: optimisticMessage.createdAt
+          });
+          return { ...current, items: newItems };
+        }
+        return current;
+      };
+
+      queryClient.setQueryData(["messages", "conversations"], updateConversationsCache);
+      queryClient.setQueryData(["messages", "conversations", "nav"], updateConversationsCache);
 
       return { clientMessageId, previousConversation };
     },
@@ -668,6 +735,22 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
           items: [...filtered, message]
         };
       });
+
+      if (data?.conversation) {
+        const updateRealConversation = (current) => {
+          if (!current?.items) return current;
+          const items = [...current.items];
+          const idx = items.findIndex((c) => c.id === data.conversation.id);
+          if (idx > -1) {
+            items.splice(idx, 1);
+          }
+          items.unshift(data.conversation);
+          return { ...current, items };
+        };
+
+        queryClient.setQueryData(["messages", "conversations"], updateRealConversation);
+        queryClient.setQueryData(["messages", "conversations", "nav"], updateRealConversation);
+      }
 
       queryClient.invalidateQueries({ queryKey: ["messages", "conversations"] });
     },
@@ -712,13 +795,17 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
       return;
     }
 
-    let finalBody = trimmed;
+    const payload = { body: trimmed, clientMessageId: `${Date.now()}-${Math.random().toString(16).slice(2)}` };
+    
     if (replyingTo) {
-      const shortText = replyingTo.body.length > 50 ? replyingTo.body.slice(0, 50) + "..." : replyingTo.body;
-      finalBody = `> **Replying to ${replyingTo.sender?.usernameDisplay || replyingTo.sender?.username || "Someone"}**\n> *${shortText}*\n\n${trimmed}`;
+      payload.replyTo = {
+        messageId: replyingTo.id,
+        body: replyingTo.body.length > 50 ? replyingTo.body.slice(0, 50) + "..." : replyingTo.body,
+        senderName: replyingTo.sender?.usernameDisplay || replyingTo.sender?.username || "Someone"
+      };
     }
 
-    sendMessageMutation.mutate({ body: finalBody, clientMessageId: `${Date.now()}-${Math.random().toString(16).slice(2)}` });
+    sendMessageMutation.mutate(payload);
   }
 
   const activeConversationTitle = getConversationName(threadConversation);
@@ -728,7 +815,7 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
   const activeConversationStatus = statusLabel(currentPresence);
   const currentUserAvatar = currentUser?.profile?.avatarMedia?.secureUrl || "";
   const currentUserInitials = (currentUser?.profile?.displayName || currentUser?.usernameDisplay || currentUser?.username || "LI").slice(0, 2).toUpperCase();
-  function buildOptimisticMessage(nextBody, clientMessageId) {
+  function buildOptimisticMessage(nextBody, clientMessageId, replyToPayload = null) {
     return {
       id: `temp-${clientMessageId}`,
       clientMessageId,
@@ -737,7 +824,8 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
       status: "sending",
       senderId: currentUser?.id,
       sender: currentUser,
-      recipient: currentParticipant
+      recipient: currentParticipant,
+      replyTo: replyToPayload
     };
   }
 
@@ -848,18 +936,31 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
                     : (author?.profile?.displayName || author?.usernameDisplay || author?.username || "LI").slice(0, 2).toUpperCase();
                   const isLatest = index === threadMessages.length - 1;
 
+                  const currentDateLabel = formatDateDivider(message.createdAt);
+                  const prevMessage = index > 0 ? threadMessages[index - 1] : null;
+                  const prevDateLabel = prevMessage ? formatDateDivider(prevMessage.createdAt) : null;
+                  const showDivider = currentDateLabel !== prevDateLabel;
+
                   return (
-                    <MessageBubble
-                      key={message.id}
-                      message={message}
-                      currentUser={currentUser}
-                      isActiveUser={isActiveUser}
-                      avatarUrl={avatarUrl}
-                      initials={initials}
-                      presence={currentPresence}
-                      isLatest={isLatest}
-                      onReply={setReplyingTo}
-                    />
+                    <Fragment key={message.id}>
+                      {showDivider ? (
+                        <div className="my-6 flex w-full justify-center">
+                          <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-white/50 backdrop-blur-md">
+                            {currentDateLabel}
+                          </span>
+                        </div>
+                      ) : null}
+                      <MessageBubble
+                        message={message}
+                        currentUser={currentUser}
+                        isActiveUser={isActiveUser}
+                        avatarUrl={avatarUrl}
+                        initials={initials}
+                        presence={currentPresence}
+                        isLatest={isLatest}
+                        onReply={setReplyingTo}
+                      />
+                    </Fragment>
                   );
                 })
               ) : (
@@ -871,10 +972,31 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
                   </p>
                 </div>
               )}
+              {typingState && currentParticipant ? (
+                <div className="mt-4 flex w-full justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="mr-auto flex max-w-[70%] items-end gap-2.5">
+                    <ChatAvatar
+                      src={activeConversationAvatar}
+                      alt={activeConversationTitle}
+                      initials={activeConversationInitials}
+                      size="sm"
+                      className="mb-0.5"
+                    />
+                    <div className="flex items-start">
+                      <div className="flex h-[38px] items-center rounded-[18px] border border-white/10 bg-[#1c1a1a] px-4 shadow-[0_10px_24px_rgba(0,0,0,0.16)]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-400" style={{ animationDelay: "0ms" }} />
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-400" style={{ animationDelay: "150ms" }} />
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-400" style={{ animationDelay: "300ms" }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <footer className="sticky bottom-0 z-20 shrink-0 border-t border-white/8 bg-[#0b0b0b]/95 p-3 backdrop-blur-xl md:px-6 md:py-4">
-              {typingState ? <div className="mb-2 text-sm text-emerald-400">Typing...</div> : null}
               {replyingTo ? (
                 <div className="mb-2 flex items-center justify-between rounded-2xl bg-[#1c1a1a] px-4 py-3 shadow-md border border-white/5">
                   <div className="flex min-w-0 flex-col">

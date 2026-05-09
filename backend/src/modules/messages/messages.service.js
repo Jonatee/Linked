@@ -308,7 +308,8 @@ async function sendMessage(userId, conversationId, payload) {
     senderId: userId,
     recipientId,
     body,
-    status: "sent"
+    status: "sent",
+    replyTo: payload.replyTo || undefined
   });
 
   const updatedConversation = await Conversation.findOneAndUpdate(
