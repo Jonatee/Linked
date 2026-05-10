@@ -237,6 +237,7 @@ async function authenticateUpgrade(req) {
   const token = requestUrl.searchParams.get("token");
 
   if (!token) {
+    logError("Websocket upgrade failed: Token missing");
     return null;
   }
 
@@ -244,11 +245,13 @@ async function authenticateUpgrade(req) {
   try {
     payload = verifyAccessToken(token);
   } catch (error) {
+    logError("Websocket upgrade failed: Invalid or expired token", error.message);
     return null;
   }
 
   const user = await User.findOne({ id: payload.sub, deletedAt: null }).lean();
   if (!user) {
+    logError("Websocket upgrade failed: User not found", { userId: payload.sub });
     return null;
   }
 

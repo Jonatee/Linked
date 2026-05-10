@@ -33,8 +33,12 @@ export default function SessionHydrator() {
         }
 
         resetSessionCheckAttempts();
+        
+        // Read the token again because it might have been refreshed by the axios interceptor
+        const currentToken = typeof window !== "undefined" ? window.localStorage.getItem("linked_access_token") : token;
+
         setSession({
-          accessToken: token,
+          accessToken: currentToken,
           user: {
             ...response.data.data.user,
             profile: response.data.data.profile || null

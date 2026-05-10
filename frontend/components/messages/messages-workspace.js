@@ -288,6 +288,7 @@ function buildMessageSocketUrl() {
 }
 
 function useMessageSocket({ enabled, currentUserId, onEvent }) {
+  const accessToken = useAuthStore((state) => state.accessToken);
   const onEventRef = useRef(onEvent);
   const socketRef = useRef(null);
   const reconnectTimerRef = useRef(null);
@@ -319,7 +320,7 @@ function useMessageSocket({ enabled, currentUserId, onEvent }) {
         return;
       }
 
-      const token = window.localStorage.getItem("linked_access_token");
+      const token = accessToken || window.localStorage.getItem("linked_access_token");
       if (!token) {
         return;
       }
@@ -372,7 +373,7 @@ function useMessageSocket({ enabled, currentUserId, onEvent }) {
       }
       clearSocket();
     };
-  }, [enabled, currentUserId]);
+  }, [enabled, currentUserId, accessToken]);
 
   const sendEvent = useCallback((event) => {
     const socket = socketRef.current;
