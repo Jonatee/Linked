@@ -589,9 +589,27 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
       const payload = event.payload || {};
 
       if (event.type === "message.created" || event.type === "message.read") {
+        const incomingConvId = payload?.conversation?.id || null;
+
+        // If the incoming message is for the currently open conversation, mark it read instantly.
+        if (incomingConvId && incomingConvId === selectedConversationId) {
+          const clearUnread = (current) => {
+            if (!current?.items) return current;
+            return {
+              ...current,
+              items: current.items.map((c) =>
+                c.id === incomingConvId ? { ...c, unreadCount: 0 } : c
+              )
+            };
+          };
+          queryClient.setQueryData(["messages", "conversations"], clearUnread);
+          queryClient.setQueryData(["messages", "conversations", "nav"], clearUnread);
+          api.patch(`/messages/conversations/${incomingConvId}/read`).catch(() => {});
+        }
+
         queryClient.invalidateQueries({ queryKey: ["messages", "conversations"] });
-        if (payload?.conversation?.id) {
-          queryClient.invalidateQueries({ queryKey: ["messages", payload.conversation.id] });
+        if (incomingConvId) {
+          queryClient.invalidateQueries({ queryKey: ["messages", incomingConvId] });
         } else if (selectedConversationId) {
           queryClient.invalidateQueries({ queryKey: ["messages", selectedConversationId] });
         }
@@ -677,7 +695,7 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
       await queryClient.cancelQueries({ queryKey: ["messages", "conversations"] });
 
       const previousConversation = queryClient.getQueryData(["messages", selectedConversationId]);
-      const previousConversationsList = queryClient.getQueryData(["messages", "conversations", "nav"]); // Optional backup
+      const previousConversationsList = queryClient.getQueryData(["messages", "conversations"]) || queryClient.getQueryData(["messages", "conversations", "nav"]);
 
       queryClient.setQueryData(["messages", selectedConversationId], (current) => {
         if (!current) {
@@ -712,11 +730,15 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
       queryClient.setQueryData(["messages", "conversations"], updateConversationsCache);
       queryClient.setQueryData(["messages", "conversations", "nav"], updateConversationsCache);
 
-      return { clientMessageId, previousConversation };
+      return { clientMessageId, previousConversation, previousConversationsList };
     },
     onError: (_error, _variables, context) => {
       if (context?.previousConversation) {
         queryClient.setQueryData(["messages", selectedConversationId], context.previousConversation);
+      }
+      if (context?.previousConversationsList) {
+        queryClient.setQueryData(["messages", "conversations"], context.previousConversationsList);
+        queryClient.setQueryData(["messages", "conversations", "nav"], context.previousConversationsList);
       }
     },
     onSuccess: (data, variables, context) => {
@@ -791,7 +813,7 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
 
   function handleSendMessage() {
     const trimmed = body.trim();
-    if (!selectedConversationId || (!trimmed && !replyingTo)) {
+    if (!selectedConversationId || !trimmed) {
       return;
     }
 
@@ -907,10 +929,10 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
                     <h1 className="truncate text-lg font-black tracking-tight text-white">{activeConversationTitle}</h1>
                     {threadConversation?.otherParticipant?.isVerified ? <VerifiedBadge compact /> : null}
                   </div>
-                  <div className="mt-1 flex items-center gap-2 text-sm text-muted">
+                  <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
                     <span className="truncate">@{activeConversationUsername || currentUser?.username || "linked"}</span>
                     <span className="h-1 w-1 rounded-full bg-white/30" />
-                    <span className={cn(activeConversationStatus === "Online" ? "text-emerald-400" : "text-muted")}>{activeConversationStatus || "Offline"}</span>
+                    <span className={cn("truncate", activeConversationStatus === "Online" ? "text-emerald-400" : "text-muted")}>{activeConversationStatus || "Offline"}</span>
                   </div>
                 </div>
               </div>
