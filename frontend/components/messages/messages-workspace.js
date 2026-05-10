@@ -522,6 +522,21 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
     lastThreadLengthRef.current = threadMessages.length;
   }, [selectedConversationId, threadMessages.length]);
 
+  // Scroll to bottom when the typing bubble appears so the user doesn't
+  // have to manually scroll up to see it.
+  useEffect(() => {
+    if (!typingState) {
+      return;
+    }
+
+    const el = messageListRef.current;
+    if (!el || !messageListNearBottomRef.current) {
+      return;
+    }
+
+    el.scrollTop = el.scrollHeight;
+  }, [typingState]);
+
   function handleMessageListScroll(event) {
     const el = event.currentTarget;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
