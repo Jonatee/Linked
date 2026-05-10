@@ -219,12 +219,14 @@ function MessageBubble({ message, isActiveUser, avatarUrl, initials, presence, i
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      <div 
-        className={cn("absolute top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 transition-opacity", isActiveUser ? "right-4" : "left-4")}
-        style={{ opacity: Math.abs(translateX) > 20 ? Math.min((Math.abs(translateX) - 20) / 30, 1) : 0 }}
-      >
-        <Reply size={14} className="text-white" />
-      </div>
+      {translateX !== 0 ? (
+        <div 
+          className={cn("absolute top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/10", isActiveUser ? "right-4" : "left-4")}
+          style={{ opacity: Math.abs(translateX) > 20 ? Math.min((Math.abs(translateX) - 20) / 30, 1) : 0 }}
+        >
+          <Reply size={14} className="text-white" />
+        </div>
+      ) : null}
 
       <div 
         className={cn("relative z-10 flex max-w-[70%] items-end gap-2.5", isActiveUser ? "ml-auto flex-row-reverse" : "mr-auto")}
@@ -246,7 +248,7 @@ function MessageBubble({ message, isActiveUser, avatarUrl, initials, presence, i
                 : "border-white/10 bg-[#1c1a1a] text-[#ece7e2]"
             )}
           >
-            {message.replyTo ? (
+            {message.replyTo?.body ? (
               <div className="mb-1.5 flex flex-col rounded-xl bg-black/20 px-3 py-1.5 text-left border-l-2 border-white/50 max-w-full min-w-0">
                 <span className="text-[11px] font-bold opacity-90 truncate">{message.replyTo.senderName}</span>
                 <span className="truncate text-xs opacity-80">{message.replyTo.body}</span>
@@ -789,11 +791,18 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
         }
 
         const items = source.items || [];
+        // Find the optimistic message so we can fall back to its replyTo if the server
+        // response omits it (prevents the quote bubble from disappearing on send).
+        const optimistic = items.find((item) => item.clientMessageId === variables?.clientMessageId);
         const filtered = items.filter((item) => item.clientMessageId !== variables?.clientMessageId && item.id !== message.id);
+        const finalMessage = {
+          ...message,
+          replyTo: message.replyTo ?? optimistic?.replyTo ?? null
+        };
 
         return {
           ...source,
-          items: [...filtered, message]
+          items: [...filtered, finalMessage]
         };
       });
 
