@@ -590,6 +590,7 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
 
       if (event.type === "message.created" || event.type === "message.read") {
         const incomingConvId = payload?.conversation?.id || null;
+        const incomingMessage = payload?.message || null;
 
         // If the incoming message is for the currently open conversation, mark it read instantly.
         if (incomingConvId && incomingConvId === selectedConversationId) {
@@ -605,14 +606,24 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
           queryClient.setQueryData(["messages", "conversations"], clearUnread);
           queryClient.setQueryData(["messages", "conversations", "nav"], clearUnread);
           api.patch(`/messages/conversations/${incomingConvId}/read`).catch(() => {});
+
+          // Patch the thread cache directly with the incoming message to preserve replyTo.
+          // Only do this for messages from OTHER users (our own messages are handled by sendMessageMutation).
+          if (incomingMessage && incomingMessage.senderId !== currentUser?.id) {
+            queryClient.setQueryData(["messages", incomingConvId], (current) => {
+              if (!current) return current;
+              const items = current.items || [];
+              const alreadyExists = items.some((m) => m.id === incomingMessage.id);
+              if (alreadyExists) return current;
+              return { ...current, items: [...items, incomingMessage] };
+            });
+          }
+        } else if (incomingConvId) {
+          // For other conversations, just invalidate their thread so it's fresh when opened.
+          queryClient.invalidateQueries({ queryKey: ["messages", incomingConvId] });
         }
 
         queryClient.invalidateQueries({ queryKey: ["messages", "conversations"] });
-        if (incomingConvId) {
-          queryClient.invalidateQueries({ queryKey: ["messages", incomingConvId] });
-        } else if (selectedConversationId) {
-          queryClient.invalidateQueries({ queryKey: ["messages", selectedConversationId] });
-        }
       }
 
       if (event.type === "message.typing" || event.type === "typing") {
@@ -777,9 +788,9 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
       queryClient.invalidateQueries({ queryKey: ["messages", "conversations"] });
     },
     onSettled: () => {
-      if (selectedConversationId) {
-        queryClient.invalidateQueries({ queryKey: ["messages", selectedConversationId] });
-      }
+      // Only refresh the conversations list for unread counts / ordering.
+      // Do NOT invalidate the thread messages — onSuccess already patches them correctly,
+      // and re-fetching here causes the replyTo block to flicker and disappear.
       queryClient.invalidateQueries({ queryKey: ["messages", "conversations"] });
     }
   });
