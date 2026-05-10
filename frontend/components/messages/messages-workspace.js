@@ -555,10 +555,6 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
     }
 
     const nextState = Boolean(isTyping);
-    if (typingStateRef.current === nextState && nextState) {
-      return;
-    }
-
     typingStateRef.current = nextState;
     sendEvent({
       type: "typing",
@@ -579,7 +575,7 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
     typingTimeoutRef.current = window.setTimeout(() => {
       typingTimeoutRef.current = null;
       clearTypingIndicator();
-    }, 1500);
+    }, 3000);
   }
 
   const { sendEvent } = useMessageSocket({
@@ -630,10 +626,11 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
         const threadId = payload.conversationId || payload.threadId || selectedConversationId;
         const userId = payload.userId || payload.actorId || null;
         if (threadId && userId) {
-          const existingTimer = typingResetTimersRef.current.get(threadId);
-          if (existingTimer) {
-            window.clearTimeout(existingTimer);
-            typingResetTimersRef.current.delete(threadId);
+          // Clear any existing timers for this thread first.
+          const oldTimer = typingResetTimersRef.current.get(threadId + "_dismiss");
+          if (oldTimer) {
+            window.clearTimeout(oldTimer);
+            typingResetTimersRef.current.delete(threadId + "_dismiss");
           }
 
           if (payload.isTyping === false) {
@@ -649,15 +646,17 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
             [threadId]: true
           }));
 
-          const timer = window.setTimeout(() => {
+          // Reset the auto-dismiss timer each time a typing event arrives.
+          // If sender keeps typing, events keep arriving and the bubble stays.
+          const dismissTimer = window.setTimeout(() => {
             setTypingByConversationId((current) => ({
               ...current,
               [threadId]: false
             }));
-            typingResetTimersRef.current.delete(threadId);
-          }, 2500);
+            typingResetTimersRef.current.delete(threadId + "_dismiss");
+          }, 8000);
 
-          typingResetTimersRef.current.set(threadId, timer);
+          typingResetTimersRef.current.set(threadId + "_dismiss", dismissTimer);
         }
       }
 
@@ -667,19 +666,33 @@ export default function MessagesWorkspace({ conversationId = null, layout = "spl
           return;
         }
 
-        setPresenceByUserId((current) => ({
-          ...current,
-          [userId]: {
-            status:
-              event.type === "presence.online"
-                ? "online"
-                : event.type === "presence.offline"
-                  ? "offline"
-                  : current[userId]?.status || "offline",
-            lastSeenAt: payload.lastSeenAt || payload.last_seen_at || current[userId]?.lastSeenAt || null,
-            typing: payload.typing ?? current[userId]?.typing ?? false
+        setPresenceByUserId((current) => {
+          const prev = current[userId] || {};
+          // Never downgrade from online unless we explicitly receive offline.
+          const newStatus =
+            event.type === "presence.online"
+              ? "online"
+              : event.type === "presence.offline"
+                ? "offline"
+                : prev.status || "offline";
+
+          // If already online and receiving another online — no change needed.
+          if (prev.status === "online" && newStatus === "online") {
+            return current;
           }
-        }));
+
+          return {
+            ...current,
+            [userId]: {
+              ...prev,
+              status: newStatus,
+              lastSeenAt: event.type === "presence.offline"
+                ? (payload.lastSeenAt || payload.last_seen_at || prev.lastSeenAt || null)
+                : prev.lastSeenAt || null,
+              typing: prev.typing ?? false
+            }
+          };
+        });
       }
     }
   });
