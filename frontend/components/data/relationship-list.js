@@ -8,6 +8,18 @@ import SquareAvatar from "@/components/branding/square-avatar";
 import VerifiedBadge from "@/components/branding/verified-badge";
 import { SearchSkeleton } from "@/components/loading/screen-skeletons";
 
+function formatFollowDate(value) {
+  if (!value) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  }).format(new Date(value));
+}
+
 function LoadMoreTrigger({ onVisible, disabled }) {
   const ref = useRef(null);
 
@@ -113,6 +125,11 @@ export default function RelationshipList({ username, type = "followers" }) {
               {user.profile?.bio ? (
                 <p className="mt-3 line-clamp-2 text-sm leading-6 text-[#ece7e2]">{user.profile.bio}</p>
               ) : null}
+              {user.followedAt ? (
+                <div className="mt-3 text-[10px] leading-none tracking-[0.18em] text-muted/60">
+                  {type === "followers" ? "Followed you" : "You followed"} · {formatFollowDate(user.followedAt)}
+                </div>
+              ) : null}
             </div>
           </div>
         </Link>
@@ -131,3 +148,4 @@ export default function RelationshipList({ username, type = "followers" }) {
     </div>
   );
 }
+
